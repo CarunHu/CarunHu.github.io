@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="胡萝卜组织培养：从外植体到完整植株的交互式虚拟仿真实验">
+  <title>胡萝卜组织培养 · 虚拟仿真实验</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%233E9B5A' d='M32 23C18 21 12 10 12 3c12 0 20 6 22 17C37 8 45 3 55 5c-2 11-10 18-22 19z'/%3E%3Cpath fill='%23F5A623' d='M20 22c0 22 8 36 12 39 5-4 13-18 12-39z'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #eef2f5;
+      --panel: rgba(255,255,255,.78);
+      --line: #d0d6dd;
+      --ink: #1f2a35;
+      --muted: #687481;
+      --green: #3e9b5a;
+      --leaf: #7ec850;
+      --orange: #f5a623;
+      --yellow: #f0c040;
+      --blue: #4d8ca8;
+      --danger: #d95f55;
+      --shadow: 0 18px 48px rgba(58,72,86,.14);
+      --glass: linear-gradient(145deg,rgba(255,255,255,.82),rgba(214,232,238,.38));
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    body { overflow-x: hidden; }
+
+    .app {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 82% 12%, rgba(240,192,64,.16), transparent 22rem),
+        linear-gradient(135deg,#f8fafc 0%,#e9eef2 50%,#f3f6f7 100%);
+    }
+
+    .topbar {
+      min-height: 72px; display: flex; align-items: center; gap: 22px; padding: 12px 26px;
+      background: rgba(248,250,252,.88); border-bottom: 1px solid rgba(148,160,171,.26);
+      backdrop-filter: blur(18px); position: sticky; top: 0; z-index: 30;
+      box-shadow: 0 8px 28px rgba(71,84,96,.08);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 275px; }
+    .brand-mark { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; background: linear-gradient(145deg,var(--green),#237441); color: white; font-size: 22px; box-shadow: 0 8px 18px rgba(62,155,90,.25); }
+    .brand h1 { font-size: 17px; margin: 0; letter-spacing: .02em; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+
+    .progress-area { flex: 1; min-width: 180px; }
+    .progress-copy { display: flex; justify-content: space-between; align-items: end; margin-bottom: 7px; font-size: 12px; color: var(--muted); }
+    .progress-copy strong { color: var(--green); font-size: 16px; }
+    .progress-track { height: 8px; border-radius: 99px; background: #dce2e7; overflow: hidden; box-shadow: inset 0 1px 3px rgba(50,60,70,.12); }
+    .progress-fill { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg,var(--green),var(--leaf),var(--orange)); transition: width .65s cubic-bezier(.2,.7,.2,1); position: relative; }
+    .progress-fill::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent); animation: sheen 2s infinite; }
+
+    .status-pill { display:flex; align-items:center; gap:8px; padding:9px 12px; background:white; border:1px solid var(--line); border-radius:99px; font-size:12px; white-space:nowrap; }
+    .status-dot { width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 0 5px rgba(62,155,90,.12); }
+
+    .stage-nav {
+      display: grid; grid-template-columns: repeat(7, minmax(108px, 1fr)); gap: 8px;
+      padding: 14px 24px 8px; max-width: 1500px; margin: auto;
+    }
+    .stage-tab { border:1px solid transparent; background:rgba(255,255,255,.52); border-radius:14px; padding:10px 10px; display:flex; align-items:center; gap:9px; color:#596573; text-align:left; transition:.25s ease; min-width:0; }
+    .stage-tab:hover { background:white; transform:translateY(-2px); box-shadow:0 8px 20px rgba(60,75,90,.08); }
+    .stage-tab.active { background:#fff; border-color:rgba(62,155,90,.35); color:var(--ink); box-shadow:0 8px 22px rgba(62,155,90,.10); }
+    .stage-tab.done .stage-num { background:var(--green); color:white; }
+    .stage-num { flex:0 0 29px; width:29px; height:29px; border-radius:9px; display:grid; place-items:center; background:#e1e6ea; font-weight:800; font-size:12px; }
+    .stage-tab.active .stage-num { background:var(--orange); color:white; }
+    .stage-tab span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:700; }
+
+    .workspace { max-width:1500px; margin:0 auto; padding:8px 24px 24px; display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:18px; }
+    .lab-shell { min-height:660px; border-radius:24px; position:relative; overflow:hidden; background:linear-gradient(#dae1e6 0 7%,#f7f9fa 7% 72%,#d1d7dc 72% 76%,#aeb7bf 76% 100%); border:1px solid rgba(255,255,255,.9); box-shadow:var(--shadow),inset 0 1px 0 white; }
+    .lab-shell::before { content:""; position:absolute; left:8%; right:8%; top:7%; height:42px; background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(220,242,249,.65)); box-shadow:0 8px 34px rgba(174,222,235,.72); border-radius:0 0 22px 22px; }
+    .lab-shell::after { content:""; position:absolute; left:0; right:0; top:72%; height:4px; background:rgba(255,255,255,.85); box-shadow:0 -3px 12px rgba(255,255,255,.8); }
+    .lab-head { position:absolute; top:66px; left:24px; right:24px; display:flex; justify-content:space-between; align-items:flex-start; z-index:3; }
+    .eyebrow { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:99px; background:rgba(255,255,255,.72); color:var(--green); font-size:12px; font-weight:800; letter-spacing:.08em; border:1px solid rgba(255,255,255,.8); }
+    .lab-head h2 { font-size:28px; margin:9px 0 4px; letter-spacing:-.03em; }
+    .lab-head p { margin:0; color:var(--muted); max-width:650px; line-height:1.65; font-size:14px; }
+    .day-chip { padding:10px 13px; color:white; background:rgba(35,52,63,.82); border-radius:12px; font-size:12px; font-weight:700; backdrop-filter:blur(8px); }
+
+    .scene { position:absolute; inset:160px 30px 140px; display:grid; place-items:center; z-index:2; }
+    .scene-card { width:min(820px,100%); min-height:360px; position:relative; display:flex; align-items:center; justify-content:center; gap:48px; padding:24px; }
+
+    .glass { background:var(--glass); border:1px solid rgba(255,255,255,.8); box-shadow:inset 5px 0 10px rgba(255,255,255,.55),inset -6px 0 12px rgba(87,120,132,.08),0 20px 30px rgba(76,91,102,.13); backdrop-filter:blur(6px); position:relative; }
+    .petri { width:180px; height:62px; border-radius:50%; }
+    .petri::before { content:""; position:absolute; inset:-12px 3px 17px; border-radius:50%; background:rgba(255,255,255,.34); border:2px solid rgba(255,255,255,.78); box-shadow:inset 0 -8px 12px rgba(125,180,153,.10); }
+    .testtube { width:86px; height:230px; border-radius:14px 14px 38px 38px; border-top:7px solid rgba(255,255,255,.85); overflow:hidden; }
+    .medium { position:absolute; left:4px; right:4px; bottom:3px; height:28%; border-radius:10px 10px 35px 35px; background:linear-gradient(rgba(240,192,64,.3),rgba(245,166,35,.48)); box-shadow:0 -6px 18px rgba(240,192,64,.15); }
+
+    .scene-label { position:absolute; left:50%; bottom:-52px; transform:translateX(-50%); width:max-content; max-width:240px; text-align:center; font-size:13px; color:#52606b; background:rgba(255,255,255,.72); border:1px solid white; border-radius:10px; padding:8px 12px; box-shadow:0 7px 15px rgba(60,70,80,.08); }
+    .pulse { animation:pulse 1.7s infinite; }
+    .action-object { transition:transform .3s ease,filter .3s ease; }
+    .action-object:hover { transform:translateY(-5px) scale(1.025); filter:saturate(1.08); }
+
+    .tool-tray { width:220px; height:115px; border-radius:24px; display:flex; align-items:center; justify-content:center; gap:24px; }
+    .scalpel { width:142px; height:12px; border-radius:10px; background:linear-gradient(90deg,#c5ccd2 0 62%,#72808b 62%); transform:rotate(-12deg); box-shadow:0 5px 10px rgba(40,50,60,.18); position:relative; }
+    .scalpel::after { content:""; position:absolute; right:-28px; top:1px; border-left:30px solid #b5c0c8; border-top:5px solid transparent; border-bottom:5px solid transparent; }
+
+    .airflow { width:320px; height:190px; border-radius:20px; background:linear-gradient(145deg,rgba(255,255,255,.65),rgba(194,220,228,.28)); border:1px solid white; position:relative; overflow:hidden; box-shadow:inset 0 0 28px rgba(122,190,210,.15); }
+    .air-line { position:absolute; left:-40%; width:70%; height:2px; background:linear-gradient(90deg,transparent,rgba(77,140,168,.7),transparent); animation:air 2.2s linear infinite; }
+    .air-line:nth-child(1){top:25%;animation-delay:0s}.air-line:nth-child(2){top:48%;animation-delay:.45s}.air-line:nth-child(3){top:71%;animation-delay:.9s}
+    .uv-lamp { position:absolute; top:14px; left:32px; right:32px; height:18px; border-radius:9px; background:#b8dfe8; box-shadow:0 0 30px rgba(102,201,225,.85); }
+    .bench-badge { position:absolute; bottom:18px; left:50%; transform:translateX(-50%); font-weight:800; color:#55636e; }
+
+    .carrot { width:115px; height:240px; position:relative; filter:drop-shadow(0 18px 15px rgba(164,101,26,.18)); }
+    .carrot-root { position:absolute; top:50px; left:27px; width:70px; height:176px; background:linear-gradient(90deg,#f18d16,#ffb43b 46%,#df7d0e); border-radius:42% 42% 58% 58% / 15% 15% 85% 85%; clip-path:polygon(8% 0,92% 0,75% 68%,51% 100%,28% 69%); }
+    .carrot-core { position:absolute; top:54px; left:51px; width:28px; height:134px; background:rgba(255,220,130,.58); border-radius:50%; }
+    .leaf { position:absolute; width:16px; height:70px; border-radius:90% 0 90% 0; background:linear-gradient(#7ec850,#318b4d); transform-origin:bottom center; bottom:182px; left:49px; }
+    .leaf.l1{transform:rotate(-40deg)}.leaf.l2{transform:rotate(-19deg);height:83px}.leaf.l3{transform:rotate(4deg);height:88px}.leaf.l4{transform:rotate(29deg);height:78px}
+    .slice-ring { width:150px; height:150px; border-radius:50%; background:radial-gradient(circle,#ffe3a1 0 26%,#f59e20 27% 68%,#df7b0f 69%); box-shadow:0 18px 28px rgba(153,91,20,.16),inset 0 0 0 7px rgba(255,255,255,.2); position:relative; }
+    .slice-ring::after { content:"韧皮部"; position:absolute; right:-28px; top:17px; color:white; font-weight:800; background:var(--green); padding:6px 10px; border-radius:8px; transform:rotate(6deg); }
+
+    .callus-cluster { width:150px; height:92px; position:relative; margin:0 auto; filter:drop-shadow(0 10px 12px rgba(91,110,55,.15)); }
+    .callus-cell { position:absolute; width:26px; height:24px; left:var(--x); top:var(--y); border-radius:46% 54% 51% 49%; background:radial-gradient(circle at 35% 28%,#fff8d8 0 18%,#dfe3a4 60%,#aabb69 100%); border:1px solid rgba(129,148,76,.28); box-shadow:inset -4px -4px 7px rgba(95,116,51,.12),inset 3px 3px 5px rgba(255,255,255,.55); animation:cellBorn .5s cubic-bezier(.2,.8,.3,1) both; }
+    .callus-cell.dividing::after { content:""; position:absolute; inset:2px 10px; border-radius:50%; background:rgba(85,122,57,.28); animation:divisionFurrow .8s ease-in-out infinite alternate; }
+    .cell-canvas { width:250px; height:180px; border-radius:50%; background:#edf7f7; border:10px solid #c6d0d5; box-shadow:inset 0 0 25px rgba(60,90,100,.2),0 15px 24px rgba(50,70,80,.14); }
+    .microscope { display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .microscope small { color:var(--muted); }
+
+    .buds { position:absolute; left:50%; top:50%; width:150px; height:70px; transform:translate(-50%,-50%); pointer-events:none; }
+    .bud { position:absolute; width:14px; height:18px; border-radius:60% 60% 45% 45%/72% 72% 28% 28%; background:linear-gradient(160deg,#9ade63,#3e9b5a); box-shadow:0 4px 8px rgba(60,110,60,.2); opacity:0; transform:scale(.2) translateY(8px); transition:opacity .55s ease,transform .8s cubic-bezier(.2,.8,.3,1); }
+    .bud.show { opacity:1; transform:scale(1) translateY(0); }
+
+    .plantlet { position:absolute; left:50%; bottom:20px; width:116px; height:174px; transform:translateX(-50%) scaleY(.08); transform-origin:50% 100%; opacity:.25; transition:transform 2.1s cubic-bezier(.18,.76,.25,1),opacity .65s ease; }
+    .plantlet.grow { transform:translateX(-50%) scaleY(1); opacity:1; }
+    .plantlet.sprout { bottom:-12px; transform:translateX(-50%) scale(.68,.05); }
+    .plantlet.sprout.grow { transform:translateX(-50%) scale(.68); }
+    .plant-stem { position:absolute; left:55px; bottom:45px; width:7px; height:112px; border-radius:6px; background:linear-gradient(90deg,#318b4d,#70c456 55%,#348f4d); box-shadow:inset 2px 0 rgba(255,255,255,.28); }
+    .plant-node { position:absolute; left:58px; bottom:var(--b); width:1px; height:1px; }
+    .plant-leaf { position:absolute; bottom:-1px; width:43px; height:24px; background:linear-gradient(135deg,#8bd354,#3e9b5a); box-shadow:inset 6px 5px 10px rgba(255,255,255,.16); }
+    .plant-leaf.left { right:0; border-radius:100% 0 100% 0; transform:rotate(17deg); transform-origin:100% 100%; }
+    .plant-leaf.right { left:0; border-radius:0 100% 0 100%; transform:rotate(-17deg); transform-origin:0 100%; }
+    .plant-node.top .plant-leaf { width:35px; height:20px; }
+    .plant-tip { position:absolute; left:48px; bottom:151px; width:22px; height:30px; background:linear-gradient(135deg,#96db5f,#3e9b5a); border-radius:100% 0 100% 0; transform:rotate(43deg); }
+    .root-bundle { position:absolute; left:58px; bottom:2px; width:1px; height:46px; opacity:0; transition:opacity .9s ease .15s; }
+    .plantlet.rooted .root-bundle { opacity:1; }
+    .root-strand { position:absolute; top:0; left:0; width:2px; height:43px; background:#d7ac6c; transform-origin:top; border-radius:2px; }
+    .root-strand:nth-child(2){transform:rotate(22deg);height:39px}.root-strand:nth-child(3){transform:rotate(-24deg);height:42px}.root-strand:nth-child(4){transform:rotate(40deg);height:31px}.root-strand:nth-child(5){transform:rotate(-41deg);height:32px}
+
+    .humidity-dome { width:220px; height:210px; border-radius:105px 105px 18px 18px; background:linear-gradient(145deg,rgba(255,255,255,.68),rgba(185,222,230,.24)); border:1px solid rgba(255,255,255,.9); box-shadow:inset 8px 0 15px rgba(255,255,255,.5),0 16px 26px rgba(60,80,90,.12); backdrop-filter:blur(6px); position:relative; transition:box-shadow .5s ease; }
+    .humidity-dome.open { box-shadow:inset 8px 0 15px rgba(255,255,255,.5),0 16px 26px rgba(60,80,90,.12),0 0 0 8px rgba(126,200,80,.18); }
+    .soil-pot { position:absolute; bottom:10px; left:58px; width:105px; height:72px; background:linear-gradient(90deg,#9f592f,#c16d37); clip-path:polygon(0 0,100% 0,86% 100%,14% 100%); }
+    .soil { position:absolute; left:4px; right:4px; top:-5px; height:16px; background:#5c4932; border-radius:50%; }
+    .humidity-readout { position:absolute; top:16px; left:50%; transform:translateX(-50%); font-size:12px; font-weight:800; color:#386b7a; background:rgba(255,255,255,.78); border:1px solid rgba(255,255,255,.95); padding:5px 11px; border-radius:99px; white-space:nowrap; }
+
+    .full-plant { width:230px; height:320px; position:relative; animation:float 4s ease-in-out infinite; }
+    .full-plant .carrot-root { top:148px; left:76px; width:84px; height:166px; }
+    .full-plant .leaf { bottom:162px; left:108px; height:145px; width:20px; }
+    .full-plant .leaf.l2,.full-plant .leaf.l4{height:165px}.full-plant .leaf.l3{height:180px}
+    .orbit { position:absolute; width:420px; height:300px; border:1px dashed rgba(62,155,90,.4); border-radius:50%; animation:spin 16s linear infinite; }
+    .orbit .dot { position:absolute; width:52px; height:52px; border-radius:50%; background:white; border:1px solid var(--line); display:grid; place-items:center; box-shadow:0 8px 16px rgba(50,70,80,.10); font-size:23px; }
+    .orbit .dot:nth-child(1){left:-24px;top:124px}.orbit .dot:nth-child(2){right:-24px;top:124px}.orbit .dot:nth-child(3){left:184px;top:-25px}.orbit .dot:nth-child(4){left:184px;bottom:-25px}
+
+    .scene-actions { position:absolute; left:24px; right:24px; bottom:24px; display:flex; gap:10px; align-items:center; min-height:86px; padding:15px; border-radius:18px; background:rgba(248,250,251,.76); border:1px solid rgba(255,255,255,.85); backdrop-filter:blur(10px); z-index:5; }
+    .action-hint { margin-right:auto; min-width:170px; }
+    .action-hint b { display:block; font-size:14px; margin-bottom:4px; }.action-hint span{font-size:12px;color:var(--muted)}
+    .btn { border:0; border-radius:12px; padding:11px 15px; background:#fff; color:var(--ink); box-shadow:0 5px 12px rgba(70,80,90,.10); font-weight:700; font-size:13px; transition:.2s ease; }
+    .btn:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(70,80,90,.14); }
+    .btn:active { transform:translateY(0); }
+    .btn.primary { background:linear-gradient(135deg,var(--green),#2e8248); color:white; }
+    .btn.orange { background:linear-gradient(135deg,var(--orange),#e58d0a); color:white; }
+    .btn.ghost { background:transparent; border:1px solid var(--line); box-shadow:none; }
+    .btn:disabled { opacity:.42; cursor:not-allowed; transform:none; }
+
+    .side-panel { display:flex; flex-direction:column; gap:14px; }
+    .panel-card { background:var(--panel); border:1px solid rgba(255,255,255,.85); border-radius:20px; padding:18px; backdrop-filter:blur(12px); box-shadow:0 12px 30px rgba(67,80,90,.09); }
+    .panel-kicker { color:var(--green); font-size:11px; font-weight:900; letter-spacing:.12em; margin-bottom:8px; }
+    .panel-card h3 { margin:0 0 9px; font-size:17px; }.panel-card p{margin:0;color:var(--muted);line-height:1.7;font-size:13px}
+    .steps { margin-top:13px; display:grid; gap:9px; }
+    .step { display:grid; grid-template-columns:24px 1fr; gap:9px; align-items:start; padding:9px; border-radius:12px; background:rgba(237,241,244,.66); font-size:12px; color:#5f6b77; width:100%; text-align:left; border:0; font-family:inherit; cursor:pointer; transition:background .18s, box-shadow .18s, transform .1s; }
+    .step:hover { background:rgba(74,134,173,.16); }
+    .step:active { transform:translateY(1px); }
+    .step.noact { cursor:default; }
+    .step.noact:hover { background:rgba(237,241,244,.66); }
+    .step i { width:24px;height:24px;border-radius:8px;background:white;display:grid;place-items:center;font-style:normal;font-weight:800;color:#77838e; }
+    .step.done { background:rgba(62,155,90,.11); color:#286d3d; }.step.done i{background:var(--green);color:white}
+    .step.current { outline:2px solid rgba(245,166,35,.35); background:rgba(245,166,35,.09); color:#82530e; }
+
+    .feedback { min-height:74px; position:relative; overflow:hidden; }
+    .feedback-line { display:flex; gap:10px; align-items:flex-start; }
+    .feedback-icon { width:32px;height:32px;flex:0 0 32px;border-radius:10px;display:grid;place-items:center;background:#e9eef1; }
+    .feedback.success .feedback-icon { background:rgba(62,155,90,.15);color:var(--green)}
+    .feedback.error .feedback-icon { background:rgba(217,95,85,.13);color:var(--danger)}
+    .feedback strong{font-size:13px;display:block;margin-bottom:3px}.feedback span{font-size:12px;color:var(--muted);line-height:1.5}
+
+    .knowledge { border-left:4px solid var(--orange); }
+    .knowledge ul { margin:10px 0 0; padding-left:19px; color:#596570; font-size:13px; line-height:1.7; }
+
+    .bottom-controls { display:flex; gap:10px; margin-top:auto; }
+    .bottom-controls .btn { flex:1; }
+    .auto.active { background:var(--orange); color:white; }
+
+    .toast { position:fixed; left:50%; bottom:26px; transform:translate(-50%,100px); opacity:0; z-index:100; background:#26343d; color:#fff; padding:12px 17px; border-radius:12px; box-shadow:0 16px 35px rgba(20,30,35,.25); font-size:13px; transition:.35s cubic-bezier(.2,.8,.2,1); pointer-events:none; }
+    .toast.show { transform:translate(-50%,0); opacity:1; }
+    .toast.good { background:#256d3c; }.toast.bad{background:#a9433b}
+
+    .modal-backdrop { position:fixed; inset:0; background:rgba(32,43,51,.42); backdrop-filter:blur(8px); z-index:80; display:none; place-items:center; padding:20px; }
+    .modal-backdrop.open { display:grid; animation:fadeIn .25s ease; }
+    .modal { width:min(560px,100%); max-height:90vh; overflow:auto; background:rgba(255,255,255,.96); border:1px solid white; border-radius:24px; padding:24px; box-shadow:0 30px 80px rgba(30,45,55,.28); }
+    .modal .badge { display:inline-block;background:rgba(62,155,90,.12);color:var(--green);padding:6px 9px;border-radius:8px;font-size:11px;font-weight:900; }
+    .modal h3 { margin:12px 0 8px;font-size:22px}.modal p{color:var(--muted);font-size:14px;line-height:1.7}
+    .quiz-options { display:grid;gap:8px;margin:14px 0; }.quiz-option{border:1px solid var(--line);background:#f8fafb;border-radius:12px;padding:11px 13px;text-align:left;color:#44515d}.quiz-option:hover{border-color:var(--green);background:#f0f8f2}.quiz-option.correct{background:rgba(62,155,90,.12);border-color:var(--green)}.quiz-option.wrong{background:rgba(217,95,85,.10);border-color:var(--danger)}
+    .modal-actions { display:flex;justify-content:flex-end;gap:10px;margin-top:16px; }
+
+    .report { width:min(740px,100%); }
+    .report-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0; }.report-stat{background:#f0f4f3;border-radius:14px;padding:14px;text-align:center}.report-stat b{display:block;font-size:24px;color:var(--green)}.report-stat span{font-size:11px;color:var(--muted)}
+    .report-table { width:100%;border-collapse:collapse;font-size:12px; }.report-table td{padding:9px;border-bottom:1px solid #e2e6e9}.report-table td:last-child{text-align:right;color:var(--green);font-weight:700}
+
+    .fast-forward { position:absolute; inset:0; z-index:12; display:none; place-items:center; background:rgba(235,242,244,.62); backdrop-filter:blur(5px); }
+    .fast-forward.on { display:grid; }
+    .time-wheel { text-align:center; }.time-wheel b{display:block;font-size:48px;color:var(--green);font-variant-numeric:tabular-nums}.time-wheel span{color:#50606b;font-weight:800}.time-bars{display:flex;gap:6px;justify-content:center;margin-top:13px}.time-bars i{width:38px;height:5px;background:var(--orange);border-radius:5px;animation:timeBar .6s infinite alternate}.time-bars i:nth-child(2){animation-delay:.15s}.time-bars i:nth-child(3){animation-delay:.3s}
+
+    .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+
+    @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,.10),0 12px 25px rgba(80,90,100,.12)}50%{box-shadow:0 0 0 13px rgba(245,166,35,.16),0 12px 25px rgba(80,90,100,.16)} }
+    @keyframes sheen { from{transform:translateX(-100%)}to{transform:translateX(100%)} }
+    @keyframes air { from{transform:translateX(0)}to{transform:translateX(230%)} }
+    @keyframes cellBorn { from{opacity:0;transform:scale(.35)}to{opacity:1;transform:scale(1)} }
+    @keyframes divisionFurrow { from{transform:scaleX(.25)}to{transform:scaleX(1)} }
+    @keyframes float { 0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)} }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    @keyframes timeBar { from{opacity:.25;transform:scaleX(.45)}to{opacity:1;transform:scaleX(1)} }
+    @keyframes fadeIn { from{opacity:0}to{opacity:1} }
+
+    @media(max-width:1050px){
+      .workspace{grid-template-columns:1fr}.side-panel{display:grid;grid-template-columns:repeat(2,1fr)}.bottom-controls{grid-column:1/-1}.stage-nav{overflow-x:auto;grid-template-columns:repeat(7,140px)}.lab-shell{min-height:640px}
+    }
+    @media(max-width:720px){
+      .topbar{padding:10px 14px;flex-wrap:wrap;gap:10px}.brand{min-width:auto;flex:1}.brand p,.status-pill{display:none}.progress-area{order:3;flex-basis:100%}.stage-nav{padding:10px 12px 6px}.workspace{padding:6px 12px 18px}.lab-shell{min-height:690px;border-radius:18px}.lab-head{top:62px;left:16px;right:16px}.lab-head h2{font-size:22px}.day-chip{display:none}.scene{inset:170px 12px 185px}.scene-card{gap:22px;transform:scale(.82)}.scene-actions{left:12px;right:12px;bottom:12px;flex-wrap:wrap}.action-hint{flex:1 0 100%}.side-panel{grid-template-columns:1fr}.report-grid{grid-template-columns:1fr 1fr}.btn{padding:10px 12px}.cell-canvas{width:200px;height:150px}.orbit{width:330px;height:260px}
+    }
+    /* =================================================================
+       迭代升级：实验室房间 + 写实超净工作台 + 分步操作动画
+       ================================================================= */
+    .scene{position:absolute;inset:150px 26px 126px;z-index:2}
+    .lab-room{position:absolute;inset:0;border-radius:18px;overflow:hidden;
+      background:radial-gradient(78% 58% at 15% -12%,rgba(255,255,255,.96),rgba(255,255,255,0) 62%),
+        linear-gradient(#f8fafb 0 57%,#eef1f3 57% 61%,#8fc4e6 61% 100%);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.7),inset 0 24px 60px rgba(206,223,233,.45),0 16px 40px rgba(70,90,105,.12);}
+    .lab-room::before{content:"";position:absolute;left:0;right:0;top:0;height:57%;
+      background:linear-gradient(90deg,rgba(120,140,155,.10) 0 1px,transparent 1px) 0 0/33.34% 100%,
+        linear-gradient(180deg,rgba(255,255,255,.92),rgba(226,232,236,.5));}
+    .lab-room::after{content:"";position:absolute;left:0;right:0;top:calc(57% - 8px);height:14px;
+      background:linear-gradient(180deg,#e0e6e9,#c2ccd1);box-shadow:0 8px 16px rgba(60,95,120,.16);}
+
+    /* 环境 HUD（温度 / 湿度） */
+    .env-hud{position:absolute;top:9px;right:11px;display:flex;gap:7px;z-index:9}
+    .env-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px 5px 9px;border-radius:9px;font-size:12px;font-weight:800;color:#cfe6f3;
+      background:linear-gradient(180deg,#2c3f4f,#182630);box-shadow:0 6px 16px rgba(15,30,45,.32),inset 0 1px 0 rgba(255,255,255,.14);letter-spacing:.02em}
+    .env-chip b{color:#fff;margin-left:2px;font-variant-numeric:tabular-nums}
+    .env-chip::before{content:"";width:7px;height:7px;border-radius:50%;background:#7ec850;box-shadow:0 0 8px rgba(126,200,80,.9)}
+    .env-chip.temp::before{background:#f0a13c;box-shadow:0 0 8px rgba(240,161,60,.95)}
+    .env-chip.hum::before{background:#5fc4e8;box-shadow:0 0 8px rgba(95,196,232,.95)}
+
+    /* 房间陈设 */
+    .prop-table{position:absolute;right:-26px;bottom:30%;width:150px;height:64px;background:linear-gradient(180deg,#fbfdfe,#dbe2e6);border-radius:8px 0 0 8px;box-shadow:inset 0 -6px 0 #c3ccd1,0 12px 22px rgba(60,90,110,.18)}
+    .prop-table::after{content:"";position:absolute;left:0;right:0;bottom:-30px;height:30px;background:linear-gradient(90deg,#ccd4d9,#adb7bd);border-radius:0 0 4px 4px}
+    .pty-outlet{position:absolute;top:16px;width:16px;height:16px;border-radius:4px;background:#f2f4f5;border:1px solid #cdd5da;box-shadow:inset 0 0 0 2px #fff}
+    .pty-outlet:nth-child(1){left:26px}.pty-outlet:nth-child(2){left:66px}.pty-outlet:nth-child(3){left:106px}
+    .prop-cart{position:absolute;left:-18px;bottom:26%;width:80px;height:96px;border-radius:8px;background:linear-gradient(180deg,#eef3f5,#cdd6db);box-shadow:0 12px 22px rgba(60,90,110,.18)}
+    .prop-cart::after{content:"";position:absolute;left:6px;right:6px;top:0;height:10px;border-radius:8px 8px 0 0;background:linear-gradient(180deg,#ffffff,#dbe2e6)}
+    .prop-cart i{position:absolute;left:8px;right:8px;height:3px;background:#b9c3c9;border-radius:2px}
+    .prop-cart i:nth-child(1){top:30px}.prop-cart i:nth-child(2){top:54px}.prop-cart i:nth-child(3){top:78px}
+    .bench-shadow{position:absolute;left:50%;bottom:6.5%;transform:translateX(-50%);width:min(500px,84%);height:34px;border-radius:50%;background:radial-gradient(ellipse,rgba(40,70,95,.34),transparent 70%);filter:blur(3px)}
+
+    /* ================= 超净工作台（写实 2.5D） ================= */
+    .workbench{position:absolute;left:50%;bottom:9%;width:min(520px,88%);aspect-ratio:520/344;transform:translateX(-50%);z-index:4}
+    .workbench.attention{animation:benchAttention 1.9s ease-in-out infinite}
+    .wb-head{position:relative;height:12%;border-radius:9px 9px 0 0;
+      background:linear-gradient(180deg,#ffffff,#eaf0f2 58%,#d5dde1);
+      border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 -7px 12px rgba(150,168,178,.22),inset 0 2px 0 rgba(255,255,255,.9);
+      display:flex;align-items:center;justify-content:space-between;padding:0 12px}
+    .wb-brand{display:flex;align-items:center;gap:7px;font-size:clamp(8px,.9vw,11px);font-weight:900;color:#4a5a66;letter-spacing:.06em}
+    .wb-brand i{width:16px;height:16px;border-radius:5px;background:linear-gradient(145deg,#3d8fce,#1c5f96);box-shadow:0 2px 5px rgba(20,80,135,.4)}
+    .wb-ctl{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:7px;background:linear-gradient(180deg,#33424f,#1d2a34);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+    .wb-ctl b{font-size:8px;color:#b9cddb;font-weight:700}
+    .wb-ctl .led{width:8px;height:8px;border-radius:50%;background:#5b6b76;box-shadow:inset 0 0 2px rgba(0,0,0,.6);transition:.3s}
+    .wb-body{position:relative;height:66%;background:linear-gradient(180deg,#eef3f5,#dde4e8 45%,#ccd5da);box-shadow:inset 0 8px 18px rgba(255,255,255,.55),inset 0 -6px 14px rgba(140,160,172,.22);overflow:hidden}
+    .wb-accent{position:absolute;left:0;right:0;top:0;height:8px;z-index:7;background:linear-gradient(180deg,#3f93d3,#1e6cae 65%,#16588e);box-shadow:0 4px 12px rgba(20,80,135,.42)}
+    .wb-frame{position:absolute;top:0;bottom:0;width:11px;z-index:8;background:linear-gradient(90deg,#5b8fb3,#2d6b9c)}
+    .wb-frame.left{left:0}.wb-frame.right{right:0;background:linear-gradient(270deg,#5b8fb3,#2d6b9c)}
+    .wb-opening{position:absolute;inset:0;overflow:hidden}
+    .wb-backwall{position:absolute;left:12%;right:12%;top:11%;bottom:22%;background:linear-gradient(180deg,#e3e9ec,#d2dade 55%,#c6ced3);box-shadow:inset 0 0 30px rgba(120,140,150,.32)}
+    .hepa-grille{position:absolute;left:0;right:0;top:0;height:56%;background-color:#d6dde1;
+      background-image:radial-gradient(circle at 2px 2px,rgba(96,116,126,.55) 1.05px,transparent 1.7px);background-size:7px 7px;
+      box-shadow:inset 0 0 20px rgba(90,110,120,.4),inset 0 -2px 0 rgba(255,255,255,.55)}
+    .uv-lamp{position:absolute;left:8%;right:8%;bottom:12px;height:8px;border-radius:5px;background:#c9d8de;transition:.4s}
+    .uv-lamp.uv-on{background:linear-gradient(180deg,#eafcff,#8fe4f5);box-shadow:0 0 22px rgba(110,220,245,.95),0 0 46px rgba(110,220,245,.5);animation:uvGlow 1.6s ease-in-out infinite}
+    .back-plate{position:absolute;right:6px;bottom:-15px;font-size:8px;color:#93a0a9;letter-spacing:.1em}
+    .wb-ceiling{position:absolute;inset:0;background:linear-gradient(180deg,#f4f8fa,#dde5e9);clip-path:polygon(0 0,12% 11%,88% 11%,100% 0)}
+    .wb-side{position:absolute;inset:0}
+    .wb-side.left{background:linear-gradient(90deg,#c8d1d6,#e8eef1);clip-path:polygon(0 0,12% 11%,12% 78%,0 100%)}
+    .wb-side.right{background:linear-gradient(270deg,#c1cbd1,#e8eef1);clip-path:polygon(100% 0,88% 11%,88% 78%,100% 100%)}
+    .wb-deck{position:absolute;inset:0;background:linear-gradient(180deg,#cbd3d8 0%,#e9eef0 44%,#f6f9fa 100%);clip-path:polygon(0 100%,100% 100%,88% 78%,12% 78%)}
+    .wb-lip{position:absolute;left:0;right:0;bottom:0;height:5%;background:linear-gradient(180deg,#eef3f5,#b6c1c8);box-shadow:inset 0 2px 0 rgba(255,255,255,.9),0 -4px 10px rgba(90,110,125,.25)}
+    .wb-sash{position:absolute;inset:0;z-index:6;pointer-events:none;
+      background:linear-gradient(112deg,rgba(255,255,255,.42) 0 9%,rgba(214,238,247,.14) 17%,rgba(255,255,255,0) 34%),linear-gradient(180deg,rgba(255,255,255,.26),rgba(178,214,230,.14));
+      border:1px solid rgba(255,255,255,.55);box-shadow:inset 0 0 44px rgba(255,255,255,.4)}
+    .wb-sash::after{content:"";position:absolute;left:6%;top:8%;width:22%;height:64%;background:linear-gradient(104deg,rgba(255,255,255,.62),rgba(255,255,255,0));transform:skewX(-16deg);filter:blur(.5px)}
+    .deck-items{position:absolute;inset:0;z-index:3}
+    .d-item{position:absolute;left:var(--x);bottom:var(--b);transform:translateX(-50%) scale(var(--s,1));transform-origin:50% 100%}
+    .d-item.target{outline:2px solid rgba(217,95,85,.92);outline-offset:6px;border-radius:6px;animation:tgtPulse 1.1s ease-in-out infinite}
+    .d-item.target::after{content:attr(data-label);position:absolute;left:50%;top:-27px;transform:translateX(-50%);background:rgba(217,95,85,.94);color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:7px;white-space:nowrap;box-shadow:0 4px 10px rgba(150,50,40,.35)}
+    .obj-bottle{width:34px;height:78px;background:linear-gradient(90deg,rgba(220,235,240,.55),rgba(255,255,255,.8));border:1px solid rgba(150,180,190,.65);border-radius:6px;box-shadow:inset 0 -26px 0 rgba(120,180,210,.5),inset 2px 0 0 rgba(255,255,255,.7),0 6px 10px rgba(60,90,110,.25)}
+    .obj-bottle::before{content:"";position:absolute;left:50%;top:-13px;transform:translateX(-50%);width:16px;height:13px;background:linear-gradient(90deg,#2f7fb5,#1d5f8c);border-radius:3px 3px 0 0}
+    .obj-dish{width:66px;height:22px;border-radius:50%;background:radial-gradient(ellipse at 50% 35%,#f4f8fa,#cdd8de);box-shadow:0 6px 10px rgba(60,90,110,.28),inset 0 -4px 6px rgba(120,150,165,.4);border:2px solid rgba(255,255,255,.75)}
+    .obj-box{width:56px;height:44px;background:linear-gradient(180deg,#ffffff,#e2e8ea);border:1px solid rgba(180,195,200,.85);border-radius:4px;box-shadow:0 6px 10px rgba(60,90,110,.22)}
+    .obj-box::after{content:"";position:absolute;left:8px;right:8px;top:12px;height:2px;background:#dbe2e6;box-shadow:0 8px 0 #dbe2e6}
+    .obj-spray{width:26px;height:60px;border-radius:6px;background:linear-gradient(90deg,#e8f2f6,#ffffff);border:1px solid rgba(150,180,190,.65)}
+    .obj-spray::before{content:"";position:absolute;top:-10px;left:3px;width:20px;height:12px;background:linear-gradient(180deg,#3f93d3,#1f6cae);border-radius:3px}
+
+    /* 洁净气流 */
+    .air-streams{position:absolute;inset:0;z-index:5;opacity:0;transition:opacity .5s ease;pointer-events:none}
+    .air-streams.on{opacity:1}
+    .air-streams i{position:absolute;left:-46%;width:46%;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,rgba(150,225,250,.9),transparent);animation:airMove 2.5s linear infinite}
+    .air-streams i:nth-child(1){top:20%;animation-delay:0s}
+    .air-streams i:nth-child(2){top:34%;animation-delay:.5s}
+    .air-streams i:nth-child(3){top:48%;animation-delay:1s}
+    .air-streams i:nth-child(4){top:62%;animation-delay:1.5s}
+    .air-streams i:nth-child(5){top:76%;animation-delay:2s}
+    .air-cap{position:absolute;right:14px;top:16px;font-size:10px;font-weight:800;color:#e6f7ff;background:rgba(30,108,174,.78);padding:3px 9px;border-radius:7px;letter-spacing:.04em}
+
+    /* ================= 阶段 1：取材工作台 ================= */
+    .lab-table{position:absolute;left:-3%;right:-3%;top:56%;height:14%;background:linear-gradient(180deg,#f5f9fa,#dde4e8 45%,#c6cfd5);box-shadow:0 16px 30px rgba(50,80,105,.24),inset 0 2px 0 rgba(255,255,255,.9);border-radius:5px;z-index:0}
+    .lab-table::after{content:"";position:absolute;left:0;right:0;top:100%;height:150%;background:linear-gradient(180deg,#aeb9c0,#8b98a1)}
+    .stage-tissue{position:absolute;left:0;right:0;top:0;bottom:44%;display:flex;align-items:flex-end;justify-content:center;gap:5%;z-index:2}
+    .cut-board{position:relative;width:min(260px,32%);aspect-ratio:260/170;border-radius:16px;background:linear-gradient(180deg,#f2e4cd,#dcc7a4);box-shadow:0 18px 28px rgba(120,90,50,.24),inset 0 0 0 3px rgba(255,255,255,.55)}
+    .cut-board .carrot{position:absolute;left:6%;bottom:26%;transform:scale(.5);transform-origin:bottom left}
+    .cut-board .slice-ring{position:absolute;right:8%;bottom:16%;width:104px;height:104px;transform:scale(.92)}
+    .cut-board .scalpel{position:absolute;right:6%;top:8%;transform:rotate(-22deg) scale(.62)}
+    .stage-tissue .petri{position:relative;width:170px;height:60px;align-self:flex-end}
+    .spray-bottle{position:absolute;left:7%;bottom:0;width:44px;height:118px;transform-origin:50% 100%}
+    .sp-body{position:absolute;inset:14px 0 0;border-radius:8px 8px 12px 12px;background:linear-gradient(90deg,rgba(226,240,246,.85),rgba(255,255,255,.95));border:1px solid rgba(150,180,190,.6);box-shadow:inset -6px 0 10px rgba(120,160,175,.2),0 10px 16px rgba(60,90,110,.22)}
+    .sp-body::after{content:"";position:absolute;left:3px;right:3px;bottom:3px;height:58%;border-radius:6px 6px 10px 10px;background:linear-gradient(180deg,rgba(150,205,230,.35),rgba(90,170,210,.5))}
+    .sp-nozzle{position:absolute;left:2px;top:0;width:40px;height:18px;border-radius:5px;background:linear-gradient(180deg,#3f93d3,#1f6cae);box-shadow:0 4px 8px rgba(20,80,135,.35)}
+    .sp-label{position:absolute;left:50%;bottom:-22px;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:800;color:#3d5a6b;background:rgba(255,255,255,.8);border-radius:7px;padding:3px 8px}
+    .spray-bottle.spraying{animation:sprayShake .45s ease-in-out 3}
+    .mist{position:absolute;left:13%;bottom:10%;width:34%;height:56%;pointer-events:none}
+    .mist i{position:absolute;left:50%;top:6%;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.95),rgba(150,205,230,.5));opacity:0}
+    .mist.on i{animation:mistFall 1.15s ease-out forwards}
+    .mist.on i:nth-child(1){--dx:-46px;--dy:70px;animation-delay:0s}
+    .mist.on i:nth-child(2){--dx:-22px;--dy:84px;animation-delay:.08s}
+    .mist.on i:nth-child(3){--dx:2px;--dy:92px;animation-delay:.16s}
+    .mist.on i:nth-child(4){--dx:24px;--dy:84px;animation-delay:.24s}
+    .mist.on i:nth-child(5){--dx:44px;--dy:70px;animation-delay:.32s}
+    .mist.on i:nth-child(6){--dx:0px;--dy:60px;animation-delay:.4s}
+    .tissue-block{position:absolute;left:50%;bottom:14px;width:22px;height:16px;margin-left:-11px;border-radius:3px;background:linear-gradient(145deg,#ffd88a,#f2a53c);box-shadow:0 3px 6px rgba(140,90,20,.35);opacity:0;transition:opacity .3s}
+    .tissue-block.show{animation:blockDrop .9s cubic-bezier(.3,1.3,.5,1) forwards}
+
+    /* ================= 阶段 2：台内接种 ================= */
+    .bench-interior{position:absolute;inset:5% 9%;border-radius:16px;overflow:visible;background:linear-gradient(180deg,#e6ebee,#d8dfe3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.8),0 18px 40px rgba(40,70,95,.25)}
+    .bi-back{position:absolute;left:9%;right:9%;top:9%;bottom:20%;background:linear-gradient(180deg,#e1e7ea,#cdd6da);box-shadow:inset 0 0 34px rgba(110,130,142,.35)}
+    .bi-ceiling{position:absolute;inset:0;background:linear-gradient(180deg,#f4f8fa,#dde5e9);clip-path:polygon(0 0,9% 9%,91% 9%,100% 0)}
+    .bi-side{position:absolute;inset:0}
+    .bi-side.left{background:linear-gradient(90deg,#c6cfd4,#e6ecef);clip-path:polygon(0 0,9% 9%,9% 80%,0 100%)}
+    .bi-side.right{background:linear-gradient(270deg,#c0cad0,#e6ecef);clip-path:polygon(100% 0,91% 9%,91% 80%,100% 100%)}
+    .bi-deck{position:absolute;inset:0;background:linear-gradient(180deg,#cbd3d8,#eef2f4 55%,#f6f9fa);clip-path:polygon(0 100%,100% 100%,91% 80%,9% 80%)}
+    .bi-items{position:absolute;inset:0;z-index:3}
+    .bi-item{position:absolute}
+    .lamp{left:21%;bottom:19%;width:56px;height:58px}
+    .lamp-body{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:44px;height:42px;border-radius:8px 8px 12px 12px;background:linear-gradient(180deg,#cfe3ea,#9fc3d2);box-shadow:inset 2px 0 0 rgba(255,255,255,.6),0 8px 12px rgba(60,90,110,.25)}
+    .lamp-body::after{content:"";position:absolute;left:50%;top:-8px;transform:translateX(-50%);width:14px;height:12px;background:#8fb3c2;border-radius:3px}
+    .flame{position:absolute;left:50%;bottom:40px;transform:translateX(-50%);width:20px;height:44px;border-radius:50% 50% 50% 50%/62% 62% 38% 38%;background:radial-gradient(ellipse at 50% 82%,#fff7c2 0 24%,#ffb43c 40%,rgba(255,120,30,.8) 64%,rgba(255,90,20,0) 100%);filter:blur(.4px);animation:flameFlick .28s infinite alternate;transform-origin:50% 100%;box-shadow:0 0 26px rgba(255,170,60,.7)}
+    .tweezers{left:44%;bottom:38%;width:76px;height:14px;transform-origin:0 50%;transition:transform .6s cubic-bezier(.3,.9,.3,1)}
+    .tweezers .tw-a,.tweezers .tw-b{position:absolute;left:0;width:100%;height:3px;border-radius:2px;background:linear-gradient(90deg,#9aa7b0,#e4ebef)}
+    .tweezers .tw-a{top:1px;transform:rotate(4deg)}
+    .tweezers .tw-b{top:9px;transform:rotate(-4deg)}
+    .tweezers .tw-tip{position:absolute;left:100%;top:0;width:13px;height:13px;background:linear-gradient(90deg,#c6d0d6,#eef3f5);clip-path:polygon(0 0,100% 38%,100% 62%,0 100%);transition:.3s}
+    .tweezers .tw-tip.hot{background:linear-gradient(90deg,#ffb43c,#ff5a1e);box-shadow:0 0 16px rgba(255,110,40,.95)}
+    .tweezers .tw-tip.cool{background:linear-gradient(90deg,#c6d0d6,#eef3f5)}
+    .tweezers.to-flame{transform:rotate(-24deg) translate(-6px,-4px)}
+    .tweezers.pick{transform:rotate(6deg) translate(26px,-2px)}
+    .culture-tube{left:66%;bottom:14%;width:54px;height:118px}
+    .tube-glass{position:absolute;inset:0;border-radius:8px 8px 22px 22px;background:linear-gradient(90deg,rgba(255,255,255,.62),rgba(206,228,236,.35));border:1.5px solid rgba(255,255,255,.95);box-shadow:inset 4px 0 8px rgba(255,255,255,.6),inset -6px 0 12px rgba(120,150,165,.28),0 10px 16px rgba(60,90,110,.22);overflow:hidden}
+    .tube-medium{position:absolute;left:2px;right:2px;bottom:2px;height:34%;border-radius:6px 6px 20px 20px;background:linear-gradient(180deg,rgba(240,200,90,.42),rgba(233,170,50,.62))}
+    .tube-cap{position:absolute;left:-4px;right:-4px;top:-12px;height:20px;border-radius:8px;background:linear-gradient(180deg,#3f93d3,#1f6cae);box-shadow:0 4px 8px rgba(20,80,135,.35);transform-origin:65% 100%;transition:transform .6s cubic-bezier(.3,.9,.3,1);z-index:2}
+    .tube-cap.open{transform:translate(30px,-34px) rotate(32deg)}
+    .tube-explant{position:absolute;left:50%;bottom:8px;width:20px;height:14px;margin-left:-10px;border-radius:3px;background:linear-gradient(145deg,#ffe0a0,#f0a13c);transform:scale(0);transition:transform .5s cubic-bezier(.3,1.4,.5,1)}
+    .tube-explant.in{transform:scale(1)}
+    .bi-hint{position:absolute;left:50%;bottom:6%;transform:translateX(-50%);font-size:11px;color:#5a6b76;background:rgba(255,255,255,.78);border-radius:8px;padding:5px 11px;white-space:nowrap;box-shadow:0 5px 12px rgba(60,90,110,.14)}
+
+    /* ================= 阶段 3/4 组合场景 ================= */
+    .callus-stage,.organo-stage,.acclim-stage{position:absolute;left:0;right:0;top:0;bottom:44%;display:flex;align-items:flex-end;justify-content:center;gap:6%;z-index:2}
+    .final-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6%;padding:15% 8% 12%;z-index:2}
+    .callus-stage .petri,.organo-stage .petri{align-self:flex-end}
+    .callus-stage .callus-cluster{transform:scale(1.3)}
+    .petri.tall{width:190px;height:66px;display:flex;align-items:center;justify-content:center}
+    .stage-tissue .petri,.callus-stage .petri,.organo-stage .petri{border:2px solid rgba(255,255,255,.94);box-shadow:inset 0 -8px 14px rgba(120,150,165,.26),0 14px 22px rgba(60,90,110,.2)}
+    .organo-stage .testtube,.acclim-stage .testtube{border:2px solid rgba(255,255,255,.94);box-shadow:inset 8px 0 16px rgba(255,255,255,.6),inset -10px 0 20px rgba(118,150,166,.32),0 16px 24px rgba(60,90,110,.22)}
+    .buds.shown .bud{opacity:1;transform:scale(1) translateY(0)}
+    .plantlet .micro-hint{position:absolute;left:50%;bottom:-22px;transform:translateX(-50%);white-space:nowrap;font-size:11px;color:#3e7a52;background:rgba(255,255,255,.85);border-radius:7px;padding:3px 8px}
+    .full-plant.verified{animation:float 4s ease-in-out infinite,verifyGlow 1.6s ease-in-out infinite}
+
+    /* ================= 关键帧 ================= */
+    @keyframes airMove{from{transform:translateX(0);opacity:0}12%{opacity:1}to{transform:translateX(230%);opacity:0}}
+    @keyframes uvGlow{0%,100%{opacity:.85}50%{opacity:1}}
+    @keyframes flameFlick{from{transform:translateX(-50%) scaleY(1) scaleX(1)}to{transform:translateX(-50%) scaleY(1.15) scaleX(.9)}}
+    @keyframes benchAttention{0%,100%{filter:drop-shadow(0 0 0 rgba(245,166,35,0))}50%{filter:drop-shadow(0 0 20px rgba(245,166,35,.6))}}
+    @keyframes tgtPulse{0%,100%{outline-color:rgba(217,95,85,.9)}50%{outline-color:rgba(217,95,85,.35)}}
+    @keyframes sprayShake{0%,100%{transform:rotate(0)}50%{transform:rotate(-7deg)}}
+    @keyframes mistFall{0%{opacity:0;transform:translate(0,0) scale(.4)}30%{opacity:.95}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.5)}}
+    @keyframes blockDrop{0%{opacity:0;transform:translateY(-26px) rotate(-40deg) scale(.6)}70%{opacity:1;transform:translateY(2px) rotate(8deg) scale(1)}100%{opacity:1;transform:translateY(0) rotate(0) scale(1)}}
+    @keyframes verifyGlow{0%,100%{filter:drop-shadow(0 0 0 rgba(62,155,90,0))}50%{filter:drop-shadow(0 0 18px rgba(62,155,90,.6))}}
+
+    .wb-base{position:relative;height:22%}
+    .wb-base .wb-cab{position:absolute;left:8%;right:8%;top:0;height:56%;border-radius:0 0 8px 8px;background:linear-gradient(180deg,#f4f8fa,#dde4e8);box-shadow:inset 0 -5px 0 #c3ccd1,0 12px 20px rgba(60,90,110,.18)}
+    .wb-base .wb-cab::after{content:"";position:absolute;left:50%;top:44%;width:52px;height:5px;transform:translateX(-50%);border-radius:3px;background:#c8d1d6}
+    .wb-base .wb-leg{position:absolute;bottom:0;width:12px;height:46%;background:linear-gradient(90deg,#d3dade,#aeb8be);border-radius:0 0 5px 5px}
+    .wb-base .wb-leg.l{left:12%}.wb-base .wb-leg.r{right:12%}
+    .wb-base .wb-plate{position:absolute;left:50%;bottom:44%;transform:translateX(-50%);font-size:9px;font-weight:800;color:#7d8b95;letter-spacing:.12em;white-space:nowrap}
+    .slice-ring.picked{animation:pickedZoom .9s ease}
+    @keyframes pickedZoom{0%{transform:scale(.92)}50%{transform:scale(1.08)}100%{transform:scale(.92)}}
+    .plantlet.transplanted{animation:transplantHop 1s ease}
+    @keyframes transplantHop{0%{transform:translateX(-50%) scaleY(1)}50%{transform:translateX(-18%) scale(.96,.98)}100%{transform:translateX(-50%) scaleY(1)}}
+
+    /* =================================================================
+       迭代二：器械动作细节化（戴手套的手 + 多段式动作编排）
+       ================================================================= */
+    .rig{position:absolute;z-index:6;opacity:0;pointer-events:none}
+    .rig.show{opacity:1}
+    .hand{position:relative;width:106px;height:74px;filter:drop-shadow(0 10px 14px rgba(50,80,105,.24))}
+    .hand>*{position:absolute}
+    .hand .sleeve{right:0;top:19px;width:56px;height:36px;border-radius:8px 24px 24px 8px;background:linear-gradient(180deg,#ffffff,#dde6ea);box-shadow:inset 0 -6px 12px rgba(120,150,165,.22),0 6px 12px rgba(60,90,110,.10)}
+    .hand .sleeve::after{content:"";position:absolute;inset:0;border-radius:inherit;background:repeating-linear-gradient(90deg,rgba(140,168,184,.10) 0 2px,transparent 2px 10px)}
+    .hand .cuff{right:48px;top:15px;width:15px;height:44px;border-radius:7px;background:linear-gradient(180deg,#eaf7fc,#9fcde1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.8),inset -2px 0 5px rgba(90,140,160,.28)}
+    .hand .mid{right:56px;top:19px;width:30px;height:12px;border-radius:8px;background:linear-gradient(180deg,#ffffff,#e9f1f5);transform:rotate(-4deg);transform-origin:100% 50%;opacity:.92;z-index:-1}
+    .hand .palm{right:52px;top:10px;width:44px;height:50px;border-radius:20px 22px 22px 22px;background:linear-gradient(180deg,#ffffff,#e6eef2);box-shadow:inset -6px 0 12px rgba(120,150,165,.24),inset 3px 3px 6px rgba(255,255,255,.9)}
+    .hand .palm::after{content:"";position:absolute;left:9px;top:13px;width:3px;height:26px;border-radius:3px;background:rgba(150,178,192,.26);box-shadow:10px 0 0 rgba(150,178,192,.18)}
+    .hand .thumb{right:58px;top:2px;width:34px;height:15px;border-radius:9px;background:linear-gradient(180deg,#ffffff,#edf4f7);transform:rotate(-16deg);transform-origin:100% 50%;box-shadow:0 3px 7px rgba(60,90,110,.22)}
+    .hand .thumb::after{content:"";position:absolute;left:-11px;top:1px;width:15px;height:14px;border-radius:60% 45% 45% 60%;background:linear-gradient(180deg,#ffffff,#e9f1f5);box-shadow:inset 0 -2px 4px rgba(120,150,165,.22)}
+    .hand .finger{right:58px;top:34px;width:36px;height:15px;border-radius:9px;background:linear-gradient(180deg,#ffffff,#edf4f7);transform:rotate(13deg);transform-origin:100% 50%;box-shadow:0 3px 7px rgba(60,90,110,.22)}
+    .hand .finger::after{content:"";position:absolute;left:-11px;bottom:1px;width:15px;height:14px;border-radius:45% 60% 60% 45%;background:linear-gradient(180deg,#ffffff,#e9f1f5);box-shadow:inset 0 2px 4px rgba(120,150,165,.22)}
+    .hand .tool{right:46px;top:30px;transform-origin:100% 50%}
+    .t-scalpel{width:120px;height:9px;border-radius:3px;background:linear-gradient(90deg,#7d8b95 0 60%,#c2ced5 60% 84%,#8d9aa4 84%);box-shadow:0 3px 6px rgba(40,60,75,.32)}
+    .t-scalpel::after{content:"";position:absolute;left:-20px;top:-5px;border-right:22px solid #d5e0e6;border-top:9px solid transparent;border-bottom:9px solid transparent;filter:drop-shadow(0 2px 2px rgba(40,60,75,.25))}
+    .t-tweezers{width:104px;height:16px}
+    .t-tweezers i{position:absolute;left:0;width:100%;height:3px;border-radius:2px;background:linear-gradient(90deg,#9fb0bb,#dbe5ea);box-shadow:0 1px 2px rgba(50,70,90,.25);z-index:3}
+    .t-tweezers i:nth-child(1){top:2px;transform:rotate(-2deg);transform-origin:100% 50%}
+    .t-tweezers i:nth-child(2){top:11px;transform:rotate(2deg);transform-origin:100% 50%}
+    .t-lens{width:78px;height:78px}
+    .t-lens .ring{position:absolute;left:0;top:0;width:64px;height:64px;border-radius:50%;border:6px solid #cbd7de;background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.9),rgba(190,225,240,.32));box-shadow:0 6px 12px rgba(50,80,105,.22),inset 0 0 18px rgba(255,255,255,.7)}
+    .t-lens .grip{position:absolute;right:0;bottom:0;width:30px;height:11px;border-radius:6px;background:linear-gradient(90deg,#8ea0ab,#c3cfd6);transform:rotate(42deg);transform-origin:0 50%}
+    .t-spray{width:66px;height:106px}
+    .t-spray .body{position:absolute;left:13px;top:28px;width:40px;height:78px;border-radius:8px 8px 12px 12px;background:linear-gradient(90deg,rgba(226,240,246,.92),rgba(255,255,255,.97));border:1px solid rgba(150,180,190,.6);box-shadow:inset -6px 0 10px rgba(120,160,175,.2),0 8px 14px rgba(60,90,110,.2)}
+    .t-spray .body::after{content:"";position:absolute;left:3px;right:3px;bottom:3px;height:56%;border-radius:6px 6px 10px 10px;background:linear-gradient(180deg,rgba(150,205,230,.35),rgba(90,170,210,.5))}
+    .t-spray .noz{position:absolute;left:14px;top:9px;width:38px;height:19px;border-radius:5px;background:linear-gradient(180deg,#3f93d3,#1f6cae);box-shadow:0 3px 6px rgba(20,80,135,.3)}
+    .t-spray .noz::after{content:"";position:absolute;left:-10px;top:5px;width:13px;height:9px;border-radius:0 3px 3px 0;background:linear-gradient(90deg,#2b6f9f,#5aa6d8)}
+
+    /* 阶段 1：固定道具绝对定位（便于与手持器械对位） */
+    .stage-tissue{position:absolute;inset:0;z-index:2}
+    .stage-tissue .cut-board{position:absolute;left:4%;top:20%;width:min(250px,25%);aspect-ratio:260/170}
+    .stage-tissue .petri{position:absolute;left:34%;top:44%;width:168px;height:60px}
+    .stage-tissue .mist{left:19%;top:30%;width:32%;height:44%}
+    .rig-lens{left:41%;top:26%}
+    .rig-spray{left:43%;top:12%}
+    .rig-knife{left:27.5%;top:37%}
+    .rig-ster{left:41%;top:15%}
+
+    /* 表面消毒：酒精 / 次氯酸钙 / 无菌水 浸洗瓶 */
+    .tank{position:absolute;width:48px;height:60px}
+    .tank .glass{position:absolute;inset:0;border-radius:6px 6px 13px 13px;background:linear-gradient(90deg,rgba(255,255,255,.5),rgba(210,232,240,.3));border:2px solid rgba(255,255,255,.92);box-shadow:inset 4px 0 8px rgba(255,255,255,.6),inset -7px 0 12px rgba(120,150,165,.22),0 10px 16px rgba(60,90,110,.18);overflow:hidden}
+    .tank .liquid{position:absolute;left:2px;right:2px;bottom:2px;height:64%;border-radius:5px 5px 11px 11px}
+    .tank.alcohol .liquid{background:linear-gradient(180deg,rgba(188,224,245,.75),rgba(112,186,224,.85))}
+    .tank.naocl .liquid{background:linear-gradient(180deg,rgba(232,240,222,.82),rgba(184,207,166,.86))}
+    .tank.water .liquid{background:linear-gradient(180deg,rgba(214,240,250,.85),rgba(144,208,236,.9))}
+    .tank .bub{position:absolute;bottom:8%;left:20%;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.92);opacity:0}
+    .tank .bub:nth-child(2){left:42%;bottom:12%}
+    .tank .bub:nth-child(3){left:62%;bottom:6%}
+    .tank .bub:nth-child(4){left:78%;bottom:14%}
+    .tank.active .bub{animation:bubUp 1.1s linear infinite}
+    .tank.active .bub:nth-child(2){animation-delay:.25s}
+    .tank.active .bub:nth-child(3){animation-delay:.5s}
+    .tank.active .bub:nth-child(4){animation-delay:.8s}
+    .tank .tag{position:absolute;left:50%;bottom:-20px;transform:translateX(-50%);white-space:nowrap;font-size:9px;font-weight:800;color:#3d5a6b;background:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.9);border-radius:5px;padding:2px 5px;box-shadow:0 4px 8px rgba(60,90,110,.1)}
+    .tank.low .tag{bottom:-36px}
+    .tank .tick{position:absolute;left:50%;top:-17px;transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:800;color:#fff;background:rgba(62,155,90,.92);border-radius:6px;padding:2px 7px;opacity:0;transition:.3s}
+    .tank.active .tick{opacity:1}
+    .tk1{left:54%;top:40%}.tk2{left:60%;top:40%}.tk3{left:66%;top:40%}.tk4{left:72%;top:40%}.tk5{left:78%;top:40%}
+    @keyframes bubUp{0%{opacity:0;transform:translateY(0) scale(.5)}25%{opacity:.95}100%{opacity:0;transform:translateY(-38px) scale(1.15)}}
+    .t-tweezers .chip{position:absolute;left:-2px;top:4px;width:16px;height:12px;border-radius:2px;background:linear-gradient(145deg,#ffe0a0,#f0a13c);box-shadow:0 2px 4px rgba(140,90,20,.35)}
+    @keyframes sterilizeSeq{
+      0%{opacity:0;transform:translate(0,-46px) rotate(6deg)}
+      6%{opacity:1;transform:translate(0,0) rotate(4deg)}
+      14%{transform:translate(193px,-10px) rotate(4deg)}
+      21%{transform:translate(193px,136px) rotate(2deg)}
+      28%{transform:translate(193px,-12px) rotate(4deg)}
+      36%{transform:translate(251px,-10px) rotate(4deg)}
+      43%{transform:translate(251px,136px) rotate(2deg)}
+      50%{transform:translate(251px,-12px) rotate(4deg)}
+      58%{transform:translate(309px,-10px) rotate(4deg)}
+      64%{transform:translate(309px,128px) rotate(2deg)}
+      70%{transform:translate(309px,-12px) rotate(4deg)}
+      76%{transform:translate(367px,-10px) rotate(4deg)}
+      82%{transform:translate(367px,128px) rotate(2deg)}
+      87%{transform:translate(367px,-12px) rotate(4deg)}
+      93%{opacity:1;transform:translate(425px,-10px) rotate(4deg)}
+      97%{opacity:1;transform:translate(425px,128px) rotate(2deg)}
+      100%{opacity:0;transform:translate(425px,-30px) rotate(6deg)}
+    }
+    .rig-ster.acting{animation:sterilizeSeq 10s cubic-bezier(.3,.05,.25,1) forwards}
+    .slice-ring.picked{animation:sliceScan 2.4s ease;box-shadow:0 0 0 7px rgba(62,155,90,.18),0 18px 30px rgba(153,91,20,.2)}
+    .slice-ring.picked::before{content:"";position:absolute;inset:0;border-radius:50%;background:linear-gradient(105deg,transparent 36%,rgba(255,255,255,.8) 50%,transparent 64%);animation:scanSweep 1.2s ease-in-out 2}
+    @keyframes sliceScan{0%{transform:scale(.92)}22%{transform:scale(1.02)}45%{transform:scale(1.18)}72%{transform:scale(1.18)}100%{transform:scale(1.08)}}
+    @keyframes scanSweep{from{transform:translateX(-105%)}to{transform:translateX(105%)}}
+    .rig-cap{left:16%;top:2%}
+    .rig-plant{left:54%;top:4%}
+
+    /* 阶段 2：台内器械 */
+    .bench-interior .rig-twflame{left:29%;top:46%}
+    .bench-interior .rig-twpick{left:75%;top:44%}
+
+    /* 阶段 5：驯化罩百叶、入盆苗 */
+    .dome-vent{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:flex;gap:5px}
+    .dome-vent i{width:16px;height:5px;border-radius:3px;background:linear-gradient(180deg,#bcd7e3,#8fb3c2);transition:transform .6s ease}
+    .humidity-dome.open .dome-vent i:nth-child(1){transform:rotate(-26deg)}
+    .humidity-dome.open .dome-vent i:nth-child(2){transform:rotate(0)}
+    .humidity-dome.open .dome-vent i:nth-child(3){transform:rotate(26deg)}
+    .pot-plant{position:absolute;left:50%;bottom:46%;transform:translateX(-50%) scale(0);transform-origin:50% 100%;transition:transform .9s cubic-bezier(.2,1.35,.4,1);z-index:3}
+    .pot-plant.in{transform:translateX(-50%) scale(.44)}
+    .tube-cap2{position:absolute;left:-4px;right:-4px;top:-13px;height:22px;border-radius:8px;background:linear-gradient(180deg,#3f93d3,#1f6cae);box-shadow:0 4px 8px rgba(20,80,135,.35);transform-origin:70% 100%;transition:transform .7s cubic-bezier(.3,.9,.3,1);z-index:4}
+    .tube-cap2.open{transform:translate(42px,-40px) rotate(46deg)}
+
+    /* 芽展开与根系伸展 */
+    .bud::before,.bud::after{content:"";position:absolute;left:50%;bottom:88%;width:10px;height:12px;border-radius:100% 0 100% 0;background:linear-gradient(135deg,#a6e06d,#3e9b5a);transform-origin:bottom center;transform:scale(0);transition:transform .55s cubic-bezier(.3,1.3,.5,1)}
+    .bud::after{transform:scale(0) scaleX(-1)}
+    .bud.show::before{transform:rotate(-28deg)}
+    .bud.show::after{transform:rotate(28deg) scaleX(-1)}
+    .plantlet.rooted .root-bundle{animation:rootsOut .9s cubic-bezier(.3,1,.4,1) both}
+    @keyframes rootsOut{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+    .plantlet.grow .plant-stem{animation:stemUp 1.6s cubic-bezier(.2,1,.3,1) both;transform-origin:50% 100%}
+    @keyframes stemUp{from{transform:scaleY(.1)}to{transform:scaleY(1)}}
+
+    /* ================= 动作关键帧 ================= */
+    @keyframes knifeCut{
+      0%{opacity:0;transform:translate(58px,-42px) rotate(17deg)}
+      10%{opacity:1}
+      26%{transform:translate(6px,-6px) rotate(5deg)}
+      40%{transform:translate(0,0) rotate(0)}
+      54%{transform:translate(-6px,30px) rotate(-2deg)}
+      70%{transform:translate(-13px,34px) rotate(-3deg)}
+      84%{opacity:1;transform:translate(-6px,14px) rotate(-5deg)}
+      100%{opacity:0;transform:translate(50px,-34px) rotate(15deg)}
+    }
+    .rig-knife.cutting{animation:knifeCut 2.8s cubic-bezier(.35,.05,.2,1) forwards}
+    @keyframes lensScan{
+      0%{opacity:0;transform:translate(62px,-26px)}
+      14%{opacity:1}
+      34%{transform:translate(0,0)}
+      48%{transform:translate(-3px,7px)}
+      64%{opacity:1;transform:translate(-1px,2px)}
+      100%{opacity:0;transform:translate(54px,-22px)}
+    }
+    .rig-lens.scanning{animation:lensScan 2.4s ease-in-out forwards}
+    @keyframes spraySeq{
+      0%{opacity:0;transform:translate(52px,-20px)}
+      14%{opacity:1;transform:translate(0,0)}
+      22%{transform:translate(0,0) rotate(0)}
+      30%{transform:translate(-4px,2px) rotate(-8deg)}
+      38%{transform:translate(0,0) rotate(0)}
+      46%{transform:translate(-4px,2px) rotate(-8deg)}
+      54%{transform:translate(0,0) rotate(0)}
+      62%{transform:translate(-4px,2px) rotate(-8deg)}
+      70%{opacity:1;transform:translate(0,0) rotate(0)}
+      100%{opacity:0;transform:translate(46px,-16px)}
+    }
+    .rig-spray.spraying{animation:spraySeq 2.8s ease-in-out forwards}
+    @keyframes twFlame{
+      0%{opacity:0;transform:translate(34px,-16px) rotate(8deg)}
+      16%{opacity:1}
+      34%{transform:translate(0,0) rotate(0)}
+      46%{transform:translate(-6px,14px) rotate(-12deg)}
+      58%{transform:translate(-10px,26px) rotate(-18deg)}
+      74%{transform:translate(-10px,26px) rotate(-18deg)}
+      88%{opacity:1;transform:translate(-2px,4px) rotate(-4deg)}
+      100%{opacity:0;transform:translate(30px,-14px) rotate(8deg)}
+    }
+    .rig-twflame.acting{animation:twFlame 3.2s cubic-bezier(.3,.05,.25,1) forwards}
+    @keyframes twPick{
+      0%{opacity:0;transform:translate(46px,-26px) rotate(10deg)}
+      12%{opacity:1}
+      30%{transform:translate(0,-6px) rotate(0)}
+      46%{transform:translate(0,14px) rotate(-4deg)}
+      60%{transform:translate(0,26px) rotate(-6deg)}
+      74%{opacity:1;transform:translate(0,26px) rotate(-6deg)}
+      88%{opacity:1;transform:translate(0,-4px) rotate(-2deg)}
+      100%{opacity:0;transform:translate(40px,-22px) rotate(10deg)}
+    }
+    .rig-twpick.acting{animation:twPick 3.6s cubic-bezier(.3,.05,.25,1) forwards}
+    .tw-tip.hot{background:linear-gradient(90deg,#ffb43c,#ff5a1e);box-shadow:0 0 18px rgba(255,110,40,.98)}
+    .steam{position:absolute;left:50%;bottom:100%;width:26px;height:34px;transform:translateX(-50%);opacity:0}
+    .steam.on{animation:steamUp 1.1s ease-out 2}
+    @keyframes steamUp{0%{opacity:0;transform:translateX(-50%) translateY(6px) scale(.6)}30%{opacity:.85}100%{opacity:0;transform:translateX(-50%) translateY(-20px) scale(1.3)}}
+    .ripple{position:absolute;left:50%;bottom:8px;width:12px;height:12px;margin-left:-6px;border-radius:50%;border:2px solid rgba(240,200,90,.85);opacity:0}
+    .ripple.on{animation:rippleOut .9s ease-out}
+    @keyframes rippleOut{0%{opacity:.9;transform:scale(.3)}100%{opacity:0;transform:scale(2.6)}}
+    .tissue-half{position:absolute;left:50%;bottom:16px;width:14px;height:14px;margin-left:-14px;border-radius:3px;background:linear-gradient(145deg,#ffd88a,#f2a53c);opacity:0}
+    .tissue-half.b{left:50%;margin-left:0}
+    .tissue-half.split{animation:halfDrop .9s cubic-bezier(.3,1.2,.5,1) forwards}
+    .tissue-half.b.split{animation-delay:.08s}
+    @keyframes halfDrop{0%{opacity:0;transform:translateY(-22px) rotate(-30deg) scale(.7)}70%{opacity:1;transform:translateY(2px) rotate(6deg) scale(1)}100%{opacity:1;transform:translateY(0) rotate(0) scale(1)}}
+
+    @keyframes handReach{
+      0%{opacity:0;transform:translate(40px,-30px)}
+      16%{opacity:1}
+      40%{transform:translate(0,0)}
+      62%{opacity:1;transform:translate(-6px,10px)}
+      100%{opacity:0;transform:translate(34px,-24px)}
+    }
+    .rig-cap.acting,.rig-plant.acting{animation:handReach 3s cubic-bezier(.3,.05,.25,1) forwards}
+    .t-tweezers i.hot{background:linear-gradient(90deg,#ffe0a0 0,#ff6a1e 20px,#d7e0e5 28px,#f2f7f9 100%);filter:drop-shadow(0 0 5px rgba(255,130,40,.85))}
+    .t-tweezers i.cool{background:linear-gradient(90deg,#cfdae0,#f2f7f9)}
+
+    /* =================================================================
+       迭代三：紫外流程 / 手套挑选 / 整块消毒 / 解剖刀 / 降饱和写实
+       ================================================================= */
+    .uv-haze{position:absolute;inset:0;z-index:7;pointer-events:none;opacity:0;transition:opacity .6s ease;
+      background:radial-gradient(62% 52% at 50% 42%,rgba(146,102,226,.34),rgba(108,72,178,.16) 62%,transparent 82%)}
+    .lab-room.uv .uv-haze{opacity:1}
+    .uv-timer{position:absolute;left:12px;top:10px;z-index:9;font-size:11px;font-weight:800;color:#ece2ff;
+      background:rgba(84,56,146,.86);border:1px solid rgba(186,156,255,.55);border-radius:8px;padding:4px 11px;opacity:0;transition:.3s}
+    .uv-timer.on{opacity:1}
+    .uv-timer.on::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#b98cff;margin-right:6px;vertical-align:middle;box-shadow:0 0 10px #b98cff;animation:uvGlow 1.2s ease-in-out infinite}
+    .workbench.uv-mode .wb-opening::after{content:"";position:absolute;inset:0;z-index:7;pointer-events:none;background:linear-gradient(180deg,rgba(150,104,228,.30),rgba(120,80,196,.22))}
+    .workbench.uv-mode .uv-lamp{background:linear-gradient(180deg,#f2e6ff,#a679f0);box-shadow:0 0 26px rgba(172,124,255,.95),0 0 58px rgba(172,124,255,.55);animation:uvGlow 1.6s ease-in-out infinite}
+    .workbench.uv-mode .led-uv{background:#b98cff;box-shadow:0 0 10px #b98cff}
+    .workbench.uv-mode .led-power{background:#4fd07a;box-shadow:0 0 8px rgba(79,208,122,.8)}
+
+    /* 手套挑选（单指前伸） */
+    .hand.point .thumb{display:none}
+    .hand.point .finger{right:26px;top:22px;width:80px;height:15px;border-radius:8px;transform:rotate(-4deg)}
+    .hand.point .finger::after{left:-12px;bottom:0;width:16px;height:15px}
+    .rig-hand{left:19%;top:31%}
+    @keyframes handPoint{
+      0%{opacity:0;transform:translate(72px,-16px)}
+      12%{opacity:1}
+      28%{transform:translate(0,0)}
+      38%{transform:translate(-9px,9px)}
+      48%{transform:translate(0,0)}
+      58%{transform:translate(-9px,9px)}
+      68%{opacity:1;transform:translate(0,0)}
+      88%{opacity:1;transform:translate(0,0)}
+      100%{opacity:0;transform:translate(66px,-12px)}
+    }
+    .rig-hand.acting{animation:handPoint 2.8s cubic-bezier(.3,.05,.25,1) forwards}
+
+    /* 整块韧皮部（薄片） */
+    .phloem-slab{width:52px;height:26px;border-radius:3px;background:linear-gradient(180deg,#f7c977,#dd9526);
+      box-shadow:0 4px 8px rgba(130,85,20,.28),inset 0 -7px 10px rgba(190,125,30,.35);transition:opacity .3s ease;position:relative}
+    .phloem-slab::after{content:"";position:absolute;inset:4px 8px;border-radius:2px;background:rgba(255,240,205,.5)}
+    .phloem-slab.gone{opacity:0}
+    .stage-tissue .phloem-slab{position:absolute;left:18.9%;top:42%}
+    .t-tweezers .slab{position:absolute;left:-11px;top:0;width:48px;height:24px;z-index:1}
+
+    /* 切成的小块 */
+    .blk{position:absolute;width:16px;height:13px;border-radius:2px;background:linear-gradient(150deg,#f9d894,#e09b2c);box-shadow:0 2px 4px rgba(140,90,20,.3);opacity:0}
+    .blk.in{animation:blkDrop .6s cubic-bezier(.3,1.2,.5,1) forwards}
+    .blk.b1{left:40%;bottom:15px}
+    .blk.b2{left:55%;bottom:18px;animation-delay:.15s}
+    .blk.b3{left:69%;bottom:14px;animation-delay:.3s}
+    @keyframes blkDrop{0%{opacity:0;transform:translateY(-18px) scale(.7)}70%{opacity:1;transform:translateY(1px) scale(1)}100%{opacity:1;transform:translateY(0) scale(1)}}
+
+    /* 解剖刀（金属手柄 + #11 刀片） */
+    .t-scalpel{width:118px;height:10px;border-radius:2px;background:linear-gradient(180deg,#d6dee3,#96a3ad 62%,#7a8792);box-shadow:0 2px 4px rgba(40,60,75,.3)}
+    .t-scalpel::before{content:"";position:absolute;right:30px;top:3px;width:3px;height:4px;border-radius:1px;background:rgba(255,255,255,.4);box-shadow:7px 0 0 rgba(255,255,255,.34),14px 0 0 rgba(255,255,255,.28),21px 0 0 rgba(255,255,255,.22)}
+    .t-scalpel::after{content:"";position:absolute;left:-26px;top:-4px;width:28px;height:18px;background:linear-gradient(120deg,#eef3f6,#a9b6bf 68%);clip-path:polygon(0 50%,100% 0,100% 100%);filter:drop-shadow(0 1px 1px rgba(40,60,75,.35))}
+
+    /* 风格下调：标签 / 底板 / 选中态 去卡通化 */
+    .scene-label{font-size:12px;color:#41525e;background:rgba(240,245,248,.92);border:1px solid rgba(126,150,164,.38);border-radius:6px;box-shadow:0 4px 10px rgba(60,80,95,.12)}
+    .slice-ring::after{background:linear-gradient(180deg,#4a86ad,#2f6289);color:#eaf4fa;border-radius:6px;font-weight:800;box-shadow:0 4px 10px rgba(40,80,110,.25)}
+    .d-item.target::after{background:linear-gradient(180deg,#4a86ad,#2f6289);box-shadow:0 4px 10px rgba(40,80,110,.3)}
+    .d-item.target{outline-color:rgba(74,134,173,.92)}
+    @keyframes tgtPulse{0%,100%{outline-color:rgba(74,134,173,.92)}50%{outline-color:rgba(74,134,173,.28)}}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(74,134,173,.14),0 12px 25px rgba(60,80,95,.14)}50%{box-shadow:0 0 0 12px rgba(74,134,173,.20),0 12px 25px rgba(60,80,95,.18)}}
+    .stage-tissue .cut-board{background:linear-gradient(180deg,#eef2f4,#d7dfe4);box-shadow:0 12px 22px rgba(55,80,100,.18),inset 0 0 0 1px rgba(255,255,255,.9),inset 0 0 0 5px rgba(196,208,216,.35)}
+    .tank.alcohol .liquid{background:linear-gradient(180deg,rgba(198,222,236,.72),rgba(148,188,214,.82))}
+    .tank.naocl .liquid{background:linear-gradient(180deg,rgba(232,240,222,.82),rgba(184,207,166,.86))}
+    .tank.water .liquid{background:linear-gradient(180deg,rgba(216,234,244,.82),rgba(168,204,226,.86))}
+    .bud::before,.bud::after{background:linear-gradient(135deg,#9ed170,#3e8f57)}
+
+    /* 镊子：只烫尖端，手柄仍由手套握持 */
+    .t-tweezers .tw-tip{position:absolute;left:-2px;top:0;width:16px;height:16px}
+    .t-tweezers .tw-tip::before,.t-tweezers .tw-tip::after{content:"";position:absolute;left:0;width:16px;height:4px;border-radius:2px;background:linear-gradient(90deg,#dde5ea,#c2cdd5);transition:background .35s ease,box-shadow .35s ease}
+    .t-tweezers .tw-tip::before{top:2px}
+    .t-tweezers .tw-tip::after{top:11px}
+    .t-tweezers .tw-tip.hot::before,.t-tweezers .tw-tip.hot::after{background:linear-gradient(90deg,#ffe9a8,#ff6a1e);box-shadow:0 0 12px rgba(255,140,40,.95),0 0 24px rgba(255,90,20,.5)}
+    .steam3{position:absolute;left:-8px;top:-32px;width:26px;height:28px;opacity:0;pointer-events:none}
+    .steam3::before,.steam3::after{content:"";position:absolute;bottom:0;width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.88);filter:blur(2px)}
+    .steam3::before{left:2px}
+    .steam3::after{left:12px}
+    .steam3.on{animation:steamRise 1.1s ease-out 2}
+    @keyframes steamRise{0%{opacity:0;transform:translateY(6px) scale(.6)}30%{opacity:.9}100%{opacity:0;transform:translateY(-22px) scale(1.3)}}
+
+    /* 阶段 5：整株试管苗取出移栽 */
+    .acclim-stage .testtube{overflow:visible}
+    .acclim-stage .plantlet.gone{opacity:0}
+    @keyframes plantMove{
+      0%{transform:translateX(-50%) translate(0,0) rotate(0)}
+      18%{transform:translateX(-50%) translate(0,-20px) rotate(-4deg)}
+      55%{transform:translateX(-50%) translate(100px,-38px) rotate(6deg)}
+      100%{transform:translateX(-50%) translate(186px,6px) rotate(0)}
+    }
+    .acclim-stage .plantlet.taken{animation:plantMove 2.6s cubic-bezier(.35,.05,.25,1) forwards}
+    .cool-chip{position:absolute;left:50%;top:-20px;transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:800;color:#3d5a6b;background:rgba(255,255,255,.92);border:1px solid rgba(126,150,164,.4);border-radius:6px;padding:2px 8px;opacity:0;transition:.3s}
+    .cool-chip.on{opacity:1}
+
+    /* ===== 迭代四：按视频真实流程重排：流水冲洗 → 75%酒精30s → 10%次氯酸钙10min → 无菌水循环冲洗3次 → 滤纸吸干 → 切取内部组织 ===== */
+    .stage-tissue .cut-board{left:1.5%;width:min(240px,25%)}
+    .stage-tissue .petri{left:27%;top:49%;width:120px;height:44px}
+    .stage-tissue .phloem-slab{left:16%;top:40%}
+    .tank{width:48px;height:56px}
+    .tk1{left:50%;top:46%}.tk2{left:61%;top:46%}.tk3{left:72%;top:46%}
+    .tank .tag{font-size:8.5px;padding:2px 4px}
+    .rig-ster{left:36%;top:15%}
+    .blk::after{content:"";position:absolute;inset:3px;border-radius:1px;background:rgba(255,248,226,.8)}
+
+    /* 流水冲洗台 */
+    .rinse-station{position:absolute;left:38%;top:22%;width:74px;height:200px}
+    .rinse-station i{position:absolute}
+    .rinse-station .pipe{left:50%;top:0;width:10px;height:52px;border-radius:4px;background:linear-gradient(90deg,#c6d2d9,#eff4f6);transform:translateX(-50%)}
+    .rinse-station .spout{left:50%;top:48px;width:36px;height:10px;border-radius:5px;background:linear-gradient(180deg,#dbe4e9,#b4c2cb);transform:translateX(-54%)}
+    .rinse-station .stream{left:50%;top:56px;width:8px;height:108px;border-radius:4px;transform:translateX(-50%);background:linear-gradient(180deg,rgba(150,205,235,.92),rgba(120,190,225,.35));opacity:0;transition:opacity .25s}
+    .rinse-station.on .stream{opacity:1}
+    .rinse-station .basin{left:50%;bottom:6px;width:66px;height:26px;border-radius:6px 6px 15px 15px;background:linear-gradient(180deg,rgba(245,250,252,.95),rgba(210,227,236,.95));border:2px solid rgba(255,255,255,.92);transform:translateX(-50%);box-shadow:0 8px 14px rgba(60,90,110,.16),inset 0 -5px 9px rgba(150,180,195,.22)}
+
+    /* （按需求已移除无菌滤纸） */
+
+    @keyframes rinseSeq{
+      0%{opacity:0;left:calc(16% + 55px);top:calc(40% - 30px)}
+      8%{opacity:1;left:calc(16% + 55px);top:calc(40% - 30px)}
+      30%{left:calc(38% + 63px);top:calc(22% + 131px)}
+      68%{left:calc(38% + 63px);top:calc(22% + 131px)}
+      88%{opacity:1;left:calc(16% + 55px);top:calc(40% - 30px)}
+      100%{opacity:0;left:calc(16% + 55px);top:calc(40% - 30px)}
+    }
+    .rig-ster.rinse{animation:rinseSeq 3.8s cubic-bezier(.3,.05,.25,1) forwards}
+
+    @keyframes sterilizeSeq{
+      0%{opacity:0;left:calc(16% + 55px);top:calc(40% - 30px)}
+      6%{opacity:1;left:calc(16% + 55px);top:calc(40% - 30px)}
+      14%{left:calc(50% + 55px);top:calc(46% - 70px)}
+      22%{left:calc(50% + 55px);top:calc(46% - 18px)}
+      34%{left:calc(50% + 55px);top:calc(46% - 70px)}
+      44%{left:calc(61% + 55px);top:calc(46% - 70px)}
+      52%{left:calc(61% + 55px);top:calc(46% - 18px)}
+      64%{left:calc(61% + 55px);top:calc(46% - 70px)}
+      72%{left:calc(72% + 55px);top:calc(46% - 70px)}
+      80%{left:calc(72% + 55px);top:calc(46% - 18px)}
+      88%{left:calc(72% + 55px);top:calc(46% - 70px)}
+      96%{opacity:1;left:calc(16% + 55px);top:calc(40% - 30px)}
+      100%{opacity:0;left:calc(16% + 55px);top:calc(40% - 30px)}
+    }
+    .rig-ster.acting{animation:sterilizeSeq 5.4s cubic-bezier(.3,.05,.25,1) forwards}
+
+    /* ===== 为讲清“细胞全能性”补的三块可视化 ===== */
+    /* 阶段1：韧皮部细胞特写（已高度分化） */
+    .phloem-view{position:absolute;right:2%;top:5%;width:196px;padding:9px 11px 10px;border-radius:13px;background:rgba(255,255,255,.94);border:1px solid rgba(120,150,165,.3);box-shadow:0 10px 20px rgba(60,90,110,.15);z-index:3}
+    .phloem-view .pv-title{font-size:11px;font-weight:800;color:#3d5a6b;margin-bottom:6px}
+    .phloem-view .pv-cells{display:flex;gap:4px;align-items:flex-end;height:54px}
+    .phloem-view .pv-cells i{flex:1;border-radius:7px;background:linear-gradient(180deg,#f7d79a,#e0a63f);border:1px solid rgba(160,110,30,.35)}
+    .phloem-view .pv-cells i:nth-child(odd){height:100%}
+    .phloem-view .pv-cells i:nth-child(even){height:86%}
+    .phloem-view .pv-note{margin-top:7px;font-size:10.5px;color:#7d8f9b;line-height:1.5}
+    .phloem-view .pv-note b{color:#c0392b}
+
+    /* 阶段3：细胞状态说明 */
+    .cell-caption{margin-top:2px;font-size:11.5px;font-weight:700;color:#3d5a6b;text-align:center;max-width:260px;line-height:1.5}
+    .cell-caption b{color:#c0392b}
+
+    /* 阶段6：证据链 */
+    .evidence-chain{position:absolute;left:5%;right:23%;top:3.5%;display:flex;align-items:center;justify-content:center;gap:4px;z-index:3;flex-wrap:wrap}
+    .ev-node{padding:4px 7px;border-radius:10px;background:rgba(255,255,255,.94);border:1px solid rgba(120,150,165,.3);font-size:10.5px;font-weight:800;color:#8095a1;box-shadow:0 6px 12px rgba(60,90,110,.1);opacity:.55;transition:.5s}
+    .ev-node small{display:block;font-size:9px;font-weight:600;color:#9aa9b3;margin-top:1px}
+    .ev-node.done{color:#286d3d;border-color:rgba(62,155,90,.55);opacity:1;background:rgba(240,250,243,.96)}
+    .ev-node.done small{color:#5b8f6c}
+    .ev-arrow{color:#9fb3bf;font-weight:900;font-size:13px}
+
+    /* 阶段6：结论 + 条件对照 */
+    .ev-bottom{position:absolute;left:3%;right:3%;bottom:2.5%;display:flex;flex-direction:column;gap:7px;z-index:3}
+    .ev-conclusion{text-align:center;padding:8px 12px;border-radius:12px;background:linear-gradient(90deg,rgba(62,155,90,.10),rgba(62,155,90,.22));border:1px dashed rgba(62,155,90,.55);font-size:12px;font-weight:800;color:#20612f;opacity:.5;transition:.7s}
+    .ev-conclusion.show{opacity:1}
+    .ev-conclusion b{color:#0f7a35}
+    .cond-cards{display:flex;gap:9px;justify-content:center}
+    .cond-card{flex:1;max-width:250px;padding:7px 9px;border-radius:11px;background:rgba(255,255,255,.95);border:1px solid rgba(200,120,90,.35);box-shadow:0 8px 16px rgba(90,60,40,.12)}
+    .cond-card b{display:block;font-size:11px;color:#b3452b;margin-bottom:2px}
+    .cond-card span{font-size:10px;color:#6d7c87;line-height:1.45}
+    .final-stage{padding:12% 8% 32%;transform:scale(.82)}
+
+    @media(max-width:1050px){.scene{inset:150px 14px 126px}}
+    @media(max-width:720px){.scene{inset:158px 10px 150px}.stage-tissue,.callus-stage,.organo-stage,.acclim-stage{gap:3%;padding:16% 4% 14%}.env-chip{font-size:11px;padding:4px 8px}.wb-ctl b{display:none}}
+
+
+    /* ================= v3：教学信息层级与交互可用性增强 ================= */
+    :focus-visible{outline:3px solid rgba(77,140,168,.45);outline-offset:3px}
+    .stage-tab:focus-visible,.btn:focus-visible,.step:focus-visible,.quiz-option:focus-visible{outline-color:rgba(62,155,90,.5)}
+    .knowledge{position:relative;overflow:hidden}
+    .knowledge::after{content:"";position:absolute;right:-36px;bottom:-42px;width:110px;height:110px;border-radius:50%;background:radial-gradient(circle,rgba(245,166,35,.11),transparent 68%);pointer-events:none}
+    .knowledge li+li{margin-top:5px}
+    .knowledge li::marker{color:var(--green)}
+
+    .ms-panel{position:absolute;left:4%;top:9%;width:270px;padding:13px 14px;border-radius:16px;background:rgba(252,254,255,.88);border:1px solid rgba(255,255,255,.96);box-shadow:0 14px 30px rgba(45,70,90,.16);backdrop-filter:blur(12px);z-index:6;transition:.35s ease}
+    .ms-panel.pulse-panel{animation:panelPulse 1.7s ease-in-out infinite}
+    .ms-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+    .ms-head b{font-size:13px;color:#294451}.ms-head span{font-size:10px;font-weight:900;color:#fff;background:linear-gradient(135deg,var(--green),#2f7f49);padding:4px 7px;border-radius:99px}
+    .ms-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .ms-item{padding:7px 8px;border-radius:9px;background:linear-gradient(180deg,#f7fafb,#edf3f5);border:1px solid #e0e7eb;min-height:48px}
+    .ms-item strong{display:block;font-size:11px;color:#2d4a59;margin-bottom:2px}.ms-item small{display:block;font-size:9.5px;color:#70808b;line-height:1.35}
+    .ms-item.hormone{grid-column:1/-1;background:linear-gradient(90deg,rgba(126,200,80,.11),rgba(245,166,35,.10))}
+    .ms-footer{margin-top:7px;font-size:9.5px;color:#6b7a85;line-height:1.45}
+    .sterile-badge{position:absolute;right:4%;top:10%;z-index:6;display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:99px;background:rgba(29,54,68,.88);color:#dff6ff;font-size:10px;font-weight:800;box-shadow:0 8px 18px rgba(30,50,65,.18)}
+    .sterile-badge i{width:8px;height:8px;border-radius:50%;background:#70d68a;box-shadow:0 0 10px rgba(112,214,138,.8)}
+
+    .hormone-panel{position:absolute;left:50%;top:7%;transform:translateX(-50%);width:min(520px,70%);padding:10px 14px;border-radius:15px;background:rgba(252,254,255,.88);border:1px solid rgba(255,255,255,.96);box-shadow:0 12px 26px rgba(45,70,90,.14);backdrop-filter:blur(12px);z-index:5}
+    .hormone-title{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;font-weight:900;color:#38505e;margin-bottom:7px}
+    .ratio-track{height:9px;border-radius:99px;background:linear-gradient(90deg,#61a9cf 0 42%,#d7df97 50%,#77bd5a 58% 100%);position:relative;box-shadow:inset 0 1px 3px rgba(50,70,80,.16)}
+    .ratio-track::after{content:"";position:absolute;left:50%;top:-4px;width:2px;height:17px;background:#fff;box-shadow:0 0 0 1px rgba(45,70,80,.18)}
+    .ratio-labels{display:flex;justify-content:space-between;margin-top:5px;font-size:9.5px;color:#64747f}.ratio-labels b{color:#3d5967}
+
+    .scene-actions .btn[disabled]{filter:grayscale(.35);box-shadow:none}
+    .stage-tab.done{border-color:rgba(62,155,90,.18)}
+    .stage-tab.active{transform:translateY(-1px)}
+    .status-pill{box-shadow:0 5px 14px rgba(60,80,90,.06)}
+
+    @keyframes panelPulse{0%,100%{box-shadow:0 14px 30px rgba(45,70,90,.16),0 0 0 0 rgba(245,166,35,.08)}50%{box-shadow:0 14px 30px rgba(45,70,90,.16),0 0 0 8px rgba(245,166,35,.14)}}
+
+    @media(max-width:1050px){.ms-panel{width:240px}.hormone-panel{width:min(480px,72%)}}
+    @media(max-width:720px){.ms-panel{left:2%;top:4%;width:210px;padding:9px}.ms-grid{grid-template-columns:1fr}.ms-item.hormone{grid-column:auto}.ms-footer{display:none}.sterile-badge{right:2%;top:4%}.hormone-panel{top:3%;width:90%;padding:8px 10px}.ratio-labels{font-size:8.5px}}
+
+    @media(prefers-reduced-motion:reduce){
+      *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}
+    }
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">🌱</div>
+        <div><h1>植物组织培养虚拟实验</h1><p>胡萝卜 · 从细胞到完整植株</p></div>
+      </div>
+      <div class="progress-area" aria-label="实验总进度">
+        <div class="progress-copy"><span id="progressLabel">等待开始</span><strong id="progressPercent">0%</strong></div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+      <div class="status-pill"><span class="status-dot"></span><span id="labStatus">无菌环境准备中</span></div>
+    </header>
+
+    <nav class="stage-nav" id="stageNav" aria-label="实验阶段导航"></nav>
+
+    <section class="workspace">
+      <section class="lab-shell" aria-live="polite">
+        <div class="lab-head">
+          <div><span class="eyebrow" id="stageEyebrow">阶段 0 · 实验准备</span><h2 id="stageTitle">在超净工作台内开始操作</h2><p id="stageDesc">超净工作台用持续洁净气流保护操作区。</p></div>
+          <div class="day-chip" id="dayChip">培养第 0 天</div>
+        </div>
+        <div class="scene" id="scene"></div>
+        <div class="scene-actions" id="sceneActions"></div>
+        <div class="fast-forward" id="fastForward"><div class="time-wheel"><b id="timeNumber">×10</b><span id="timeText">时间快进</span><div class="time-bars"><i></i><i></i><i></i></div></div></div>
+      </section>
+
+      <aside class="side-panel">
+        <section class="panel-card">
+          <div class="panel-kicker">操作任务</div>
+          <h3 id="taskTitle">准备超净工作台</h3>
+          <p id="taskCopy">按顺序完成关键操作。橙色脉冲表示当前可操作对象。</p>
+          <div class="steps" id="steps"></div>
+        </section>
+        <section class="panel-card feedback" id="feedback">
+          <div class="panel-kicker">实时反馈</div>
+          <div class="feedback-line"><div class="feedback-icon" id="feedbackIcon">◎</div><div><strong id="feedbackTitle">等待操作</strong><span id="feedbackText">系统会在这里提示操作结果。</span></div></div>
+        </section>
+        <section class="panel-card knowledge" id="principleCard">
+          <div class="panel-kicker">阶段原理</div>
+          <h3 id="principleTitle">关键知识</h3>
+          <ul id="principleList"></ul>
+        </section>
+        <div class="bottom-controls">
+          <button class="btn ghost" id="prevBtn">上一阶段</button>
+          <button class="btn auto" id="autoBtn">自动演示</button>
+          <button class="btn primary" id="nextBtn">下一阶段</button>
+        </div>
+        <button class="btn ghost" id="resetBtn">重置实验</button>
+      </aside>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+  <div class="modal-backdrop" id="quizModal" role="dialog" aria-modal="true" aria-labelledby="quizQuestion">
+    <div class="modal">
+      <div id="quizQuestion" style="font-weight:800;font-size:15px"></div><div class="quiz-options" id="quizOptions"></div>
+      <div id="quizExplain" style="min-height:22px;color:var(--muted);font-size:13px"></div>
+      <div class="modal-actions"><button class="btn primary" id="quizContinue" disabled>继续实验</button></div>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="reportModal" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
+    <div class="modal report">
+      <span class="badge">实验完成</span><h3 id="reportTitle">胡萝卜组织培养实验报告摘要</h3><p>你已完成从外植体细胞到完整植株的再生闭环。</p>
+      <div class="report-grid"><div class="report-stat"><b id="reportCompletion">0%</b><span>实验完成度</span></div><div class="report-stat"><b id="reportScore">0/5</b><span>知识测验</span></div><div class="report-stat"><b id="reportErrors">0</b><span>纠错次数</span></div></div>
+      <table class="report-table" id="reportTable"></table>
+      <div class="modal-actions"><button class="btn ghost" id="printBtn">打印 / 保存报告</button><button class="btn primary" id="closeReport">返回实验台</button></div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    /* ============ 阶段数据 ============ */
+    const stages = [
+      {
+        nav:'准备阶段', eyebrow:'阶段 0 · 无菌操作环境', title:'启动超净工作台并完成紫外消毒',
+        desc:'先用紫外灯对操作区表面杀菌，再关闭紫外灯、启动风机，形成持续洁净的气流保护。', day:0,
+        task:'准备超净工作台', copy:'先开紫外灯消毒，再关灯并确认洁净气流稳定。',
+        steps:['打开紫外灯，对操作区消毒 30 min','关闭紫外灯，确认洁净气流稳定'],
+        knowledge:['紫外灯可杀灭操作台面及空气中的部分微生物，用于工作前的表面消毒。','紫外线对人眼和皮肤有伤害，操作前必须先关闭紫外灯，再启动风机进入层流状态。'],
+        summary:'先用紫外灯消毒、再关灯启动风机，是超净工作台的标准使用顺序。',
+        quiz:'组织培养的接种操作为什么要在超净工作台内进行？',
+        options:['为了保持温度恒定','为了减少微生物污染','为了增强光照强度'],
+        correct:1, explain:'正确。洁净层流能显著降低空气中的微生物污染。'
+      },
+      {
+        nav:'获取外植体', eyebrow:'阶段 1 · 外植体获取', title:'切取胡萝卜韧皮部',
+        desc:'从健康胡萝卜根中切取薄而均匀的韧皮部组织，作为外植体。', day:0,
+        task:'选择并切取外植体', copy:'器械需事先灭菌；按"流水冲洗 → 消毒 → 吸干 → 无菌切取"进行。',
+        steps:['戴手套选取整块韧皮部材料','用流水冲洗干净','酒精、次氯酸钙消毒，无菌水冲洗','无菌切取内部组织并放入培养皿'],
+        knowledge:['韧皮部中的生活薄壁细胞分化程度较低，再生潜能强。','外植体先用流水冲洗；再用 75% 酒精消毒 30 s、10% 次氯酸钙消毒 10 min，最后用无菌水冲洗 3 次。','切取须使用已灭菌的镊子与解剖刀，不可用手直接接触材料。'],
+        summary:'选择胡萝卜韧皮部，是因为其中生活薄壁细胞分裂潜能强，具备恢复全能性的基础。',
+        quiz:'胡萝卜韧皮部适合作外植体的主要原因是？',
+        options:['细胞已经完全木质化','生活细胞多且再生潜能强','含糖量越高越不易污染'],
+        correct:1, explain:'正确。活的薄壁细胞分裂潜能较强，是组织培养常用的材料。'
+      },
+      {
+        nav:'接种', eyebrow:'阶段 2 · MS 培养基与无菌接种', title:'认识 MS 培养基并完成无菌接种',
+        desc:'先确认 MS 培养基的营养组成与激素作用，再在超净工作台内完成无菌接种。', day:1,
+        task:'检查培养基并完成接种', copy:'先认识 MS 培养基组成，再灭菌接种工具，把外植体切口朝下接入培养基。',
+        steps:['检查 MS 培养基组成与功能','火焰灭菌镊子并等待冷却','夹取外植体接入培养基'],
+        knowledge:['培养基为离体组织提供水分、无机盐、糖、维生素和植物激素等营养。','培养基中还需加入适宜种类与配比的植物激素（生长素、细胞分裂素），它们是启动分裂、决定分化方向的关键。','外植体切口朝下与培养基充分接触，便于吸收养分、启动分裂。'],
+        summary:'MS 培养基提供离体组织所需的矿质元素、碳源、维生素和激素；外植体在无菌条件下接入培养基后开始离体培养。',
+        quiz:'', options:[], correct:0, explain:''
+      },
+      {
+        nav:'脱分化', eyebrow:'阶段 3 · 脱分化', title:'诱导愈伤组织形成',
+        desc:'启动培养时间快进，观察外植体细胞恢复分裂并形成愈伤组织。', day:12,
+        task:'观察脱分化过程', copy:'推进培养时间，并在显微镜视野中确认细胞增殖。',
+        steps:['启动时间快进至培养第 12 天','观察愈伤组织逐渐增殖','打开显微镜观察分裂细胞'],
+        knowledge:['脱分化是已分化细胞在离体条件下恢复分裂能力的过程，通常需要生长素与细胞分裂素适中配比。','愈伤组织是形态不规则、未分化或低分化的细胞团。'],
+        summary:'脱分化使成熟组织细胞重新进入细胞周期，形成可继续诱导分化的愈伤组织。',
+        quiz:'愈伤组织的本质是？',
+        options:['大量未分化或低分化细胞组成的细胞团','已经形成维管束的完整器官','营养液表面的微生物菌落'],
+        correct:0, explain:'正确。愈伤组织是植物组织培养再生过程中的重要中间状态。'
+      },
+      {
+        nav:'再分化', eyebrow:'阶段 4 · 再分化（重点）', title:'先诱导生芽，再诱导生根',
+        desc:'愈伤组织表层细胞重新组织，先形成芽（茎叶系统），再产生不定根，成为完整试管苗。', day:28,
+        task:'完成芽与根的分化', copy:'按顺序诱导芽和根，观察完整试管苗的建成过程。',
+        steps:['诱导愈伤组织分化出芽点','观察芽点发育成带叶的幼芽','诱导幼芽基部产生不定根','确认芽与根齐全的完整试管苗'],
+        knowledge:[
+          '生芽：愈伤组织表层细胞重新组织，形成芽原基，再发育为带叶的幼芽，建立茎叶系统。',
+          '生根：幼芽基部形成不定根，根系建立后，小植株才能独立吸收水分和无机盐。',
+          '分化方向由培养基中生长素与细胞分裂素的比例决定：比例偏高利于生根，偏低利于生芽。',
+          '分化顺序通常是先芽后根：先建立茎叶系统，再诱导生根，才能得到完整的试管苗。'
+        ],
+        summary:'再分化让无序增殖的愈伤组织重新建立器官秩序：先形成芽，再形成根，最终得到完整的试管苗。',
+        quiz:'', options:[], correct:0, explain:''
+      },
+      {
+        nav:'驯化移栽', eyebrow:'阶段 5 · 驯化与移栽', title:'让试管苗适应温室环境',
+        desc:'逐步通风降低湿度，增强幼苗适应性，再移栽到消毒土壤。', day:42,
+        task:'完成炼苗与移栽', copy:'先开盖炼苗，再逐步降低湿度，最后移栽。',
+        steps:['打开瓶盖开始炼苗','逐步降低环境湿度至 70%','移栽至疏松、消毒的土壤'],
+        knowledge:['试管苗角质层薄、气孔调节能力弱，直接移栽容易失水萎蔫。','逐步降湿能帮助叶片建立正常的蒸腾调节能力。'],
+        summary:'驯化是连接无菌高湿环境与温室环境的桥梁；循序降湿比直接移栽更能提高成活率。',
+        quiz:'试管苗移栽前为什么要炼苗？',
+        options:['使植株逐步适应较低湿度与非无菌环境','让营养液颜色变深','让植株停止光合作用'],
+        correct:0, explain:'正确。炼苗能降低环境突变造成的失水和死亡风险。'
+      },
+      {
+        nav:'形成完整植株', eyebrow:'阶段 6 · 完整植株', title:'完成从细胞到个体的生命闭环',
+        desc:'回顾外植体、愈伤组织、芽与根的发生，以及完整植株的形成。', day:90,
+        task:'完成实验闭环', copy:'检查关键环节，确认植物细胞全能性的证据链。',
+        steps:['回顾各关键培养节点','确认再生植株生长正常','生成实验报告摘要'],
+        knowledge:['植物细胞全能性是离体细胞在适宜条件下发育成完整植株的潜能。','无菌环境、营养供给和芽根的有序分化共同决定培养成败。'],
+        summary:'一小块胡萝卜韧皮部组织在适宜离体条件下可再生为完整植株，直观体现植物细胞全能性。',
+        quiz:'本实验最直接体现了植物细胞的什么特性？',
+        options:['专一性','全能性','不可逆性'],
+        correct:1, explain:'正确。从离体组织再生为完整植株，是植物细胞全能性的经典证据。'
+      }
+    ];
+
+    /* 无测验的阶段（完成后直接进入下一阶段） */
+    const SKIP_QUIZ_STAGES = [2, 4];
+    /* 有测验的阶段总数（用于报告显示） */
+    const QUIZ_TOTAL = stages.filter((s,i)=>!SKIP_QUIZ_STAGES.includes(i)).length;
+    /* 每个阶段“第几步对应哪个操作”，供右侧步骤点击与自动演示共用 */
+    const STAGE_ACTS = [
+      ['uvOn','uvOff'],
+      ['tissue','rinse','sterilize','cut'],
+      ['inspectMS','sterileTool','inoculate'],
+      ['time','growCallus','scope'],
+      ['bud','observeBud','root','check'],
+      ['openCap','dry','transplant'],
+      ['review','checkPlant','report']
+    ];
+
+    let current = 0, step = 0, errors = 0, quizScore = 0, autoMode = false, autoTimer = null, autoStall = 0;
+    let transitionPending = false;
+    let busyUntil = 0;
+    let toolSterile = false, msChecked = false, tissueChosen = false, tissueRinsed = false, tissueSterile = false, capOpened = false;
+    let humidity = 95, drying = false;
+    const completed = new Set(), answered = new Set();
+
+    const $ = s => document.querySelector(s);
+    const nav = $('#stageNav'), scene = $('#scene'), actions = $('#sceneActions');
+
+    /* ============ 顶部导航 / 步骤 / 反馈 ============ */
+    function navHTML(){
+      nav.innerHTML = stages.map((s,i)=>`<button class="stage-tab ${i===current?'active':''} ${completed.has(i)?'done':''}" data-stage="${i}" aria-current="${i===current?'step':'false'}"><span class="stage-num">${completed.has(i)?'✓':i}</span><span>${s.nav}</span></button>`).join('');
+    }
+    function stepHTML(){
+      const acts = STAGE_ACTS[current] || [];
+      $('#steps').innerHTML = stages[current].steps.map((s,i)=>{
+        const a = acts[i] || '';
+        return `<button type="button" class="step ${i<step?'done':i===step?'current':''}${a?'':' noact'}" data-step="${i}" data-act="${a}"><i>${i<step?'✓':i+1}</i><span>${s}</span></button>`;
+      }).join('');
+    }
+    function feedback(type,title,text){
+      const box=$('#feedback'); box.className='panel-card feedback '+type;
+      $('#feedbackIcon').textContent = type==='success'?'✓':type==='error'?'!':'◎';
+      $('#feedbackTitle').textContent = title; $('#feedbackText').textContent = text;
+    }
+    function toast(msg,type=''){
+      const t=$('#toast'); t.textContent=msg; t.className='toast show '+type;
+      clearTimeout(t._to); t._to=setTimeout(()=>t.className='toast',2400);
+    }
+    function beep(ok=true){
+      try{
+        const ac=new (window.AudioContext||window.webkitAudioContext)();
+        const o=ac.createOscillator(), g=ac.createGain();
+        o.frequency.value = ok?660:220;
+        g.gain.setValueAtTime(.04,ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.16);
+        o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime+.16);
+      }catch(e){}
+    }
+    function wrong(msg,help){ errors++; beep(false); feedback('error',msg,help); toast(msg,'bad'); }
+    function good(msg,detail){
+      beep(true); feedback('success',msg,detail); toast(msg,'good'); step++; stepHTML(); renderActions();
+      if(step>=stages[current].steps.length){
+        completed.add(current); updateProgress(); transitionPending = true;
+        const st = current;
+        if(SKIP_QUIZ_STAGES.includes(st)){
+          /* 无测验阶段：等动作演示完整后再进入下一阶段 */
+          setTimeout(()=>{
+            if(current!==st) return;
+            if(st<stages.length-1) changeStage(st+1);
+            else openReport();
+          }, 3200);
+        }else{
+          setTimeout(()=>openQuiz(st),1900);
+        }
+      }
+    }
+    function updateProgress(){
+      const pct = Math.round(completed.size/stages.length*100);
+      $('#progressFill').style.width = pct+'%';
+      $('#progressPercent').textContent = pct+'%';
+      $('#progressLabel').textContent = completed.size===0 ? '等待开始'
+        : completed.size===stages.length ? '实验完成'
+        : `已完成 ${completed.size} / ${stages.length} 个阶段`;
+      navHTML();
+    }
+
+    /* ============ 图形素材 ============ */
+    const cellPositions = [[58,34],[42,46],[75,48],[55,57],[87,29],[29,31],[96,54],[18,49],[71,18],[104,17],[39,19],[83,68],[12,22],[113,42],[27,65],[99,72],[52,75],[119,61],[66,3],[5,58],[91,5],[126,28],[12,75],[111,2],[33,2],[130,52],[70,72],[48,3]];
+    function callusCells(count){
+      return cellPositions.slice(0,count).map((p,i)=>`<i class="callus-cell ${i<3?'dividing':''}" style="--x:${p[0]}px;--y:${p[1]}px;animation-delay:${i*.06}s"></i>`).join('');
+    }
+    function plantletMarkup(){
+      return `<i class="plant-stem"></i>
+        <span class="plant-node" style="--b:70px"><i class="plant-leaf left"></i><i class="plant-leaf right"></i></span>
+        <span class="plant-node" style="--b:104px"><i class="plant-leaf left"></i><i class="plant-leaf right"></i></span>
+        <span class="plant-node top" style="--b:136px"><i class="plant-leaf left"></i><i class="plant-leaf right"></i></span>
+        <i class="plant-tip"></i>
+        <span class="root-bundle"><i class="root-strand"></i><i class="root-strand"></i><i class="root-strand"></i><i class="root-strand"></i><i class="root-strand"></i></span>`;
+    }
+    function budMarkup(){
+      const pos=[[10,16],[38,6],[66,18],[94,4],[120,14]];
+      return pos.map(p=>`<i class="bud" style="left:${p[0]}px;top:${p[1]}px"></i>`).join('');
+    }
+
+    /* ============ 渲染 ============ */
+    function render(){
+      const s = stages[current];
+      step = completed.has(current) ? s.steps.length : 0;
+      $('#stageEyebrow').textContent = s.eyebrow;
+      $('#stageTitle').textContent = s.title;
+      $('#stageDesc').textContent = s.desc;
+      $('#dayChip').textContent = `培养第 ${s.day} 天`;
+      $('#taskTitle').textContent = s.task;
+      $('#taskCopy').textContent = s.copy;
+      $('#prevBtn').disabled = current===0;
+      $('#nextBtn').textContent = current===6 ? '查看报告' : '下一阶段';
+      $('#labStatus').textContent =
+        current===0 ? '无菌环境准备中' :
+        current<5 ? '培养条件稳定' : '温室环境稳定';
+      $('#principleTitle').textContent = current===0 ? '安全与无菌原则' : current===2 ? 'MS 培养基要点' : current===4 ? '器官发生关键' : '本阶段关键知识';
+      $('#principleList').innerHTML = s.knowledge.slice(0,3).map(k=>`<li>${k}</li>`).join('');
+      renderScene(); stepHTML(); navHTML();
+      feedback('', completed.has(current)?'本阶段已完成':'等待操作',
+        completed.has(current)?'可切换阶段复习，或继续下一阶段。':'请根据任务顺序完成操作。');
+    }
+
+    /* ============ 场景素材 ============ */
+    function hud(t,h){ return `<div class="env-hud"><span class="env-chip temp">温度<b>${t}℃</b></span><span class="env-chip hum">湿度<b>${h}%</b></span></div>`; }
+    function carrotHTML(){ return `<div class="carrot"><i class="leaf l1"></i><i class="leaf l2"></i><i class="leaf l3"></i><i class="leaf l4"></i><div class="carrot-root"><div class="carrot-core"></div></div></div>`; }
+    function handHTML(tool,handCls){ return `<div class="hand ${handCls||''}"><i class="sleeve"></i><i class="cuff"></i><i class="mid"></i><i class="palm"></i><i class="thumb"></i><i class="finger"></i>${tool||''}</div>`; }
+    function rigHTML(id,cls,tool,handCls){ return `<div class="rig ${cls}" id="${id}">${handHTML(tool,handCls)}</div>`; }
+    const TOOL = {
+      scalpel:'<div class="tool t-scalpel"></div>',
+      tweezers:'<div class="tool t-tweezers"><i></i><i></i></div>',
+      lens:'<div class="tool t-lens"><i class="ring"></i><i class="grip"></i></div>',
+      spray:'<div class="tool t-spray"><i class="noz"></i><i class="body"></i></div>'
+    };
+    function deckItemsHTML(target){
+      const it=(cls,x,b,s,label,key)=>`<div class="d-item ${cls} ${target===key?'target':''}" ${target===key?`data-label="${label}"`:''} style="--x:${x};--b:${b};--s:${s}"></div>`;
+      return it('obj-bottle','21%','15%','.9','试剂瓶','bottle')
+           + it('obj-dish','39%','6%','1.05','培养皿','dish')
+           + it('obj-box','63%','10%','.95','无菌器具','box')
+           + it('obj-spray','78%','5%','.85','酒精喷瓶','spray');
+    }
+    function workbenchHTML(o){
+      o = o || {};
+      return `
+      <div class="workbench ${o.on?'bench-on':''} ${o.attention?'attention':''}" id="workbench">
+        <div class="wb-head">
+          <div class="wb-brand"><i></i><span>SW-CJ-1FD</span></div>
+          <div class="wb-ctl">
+            <span class="led led-power"></span><b>电源</b>
+            <span class="led led-fan"></span><b>风机</b>
+            <span class="led led-uv"></span><b>紫外</b>
+            <span class="led led-lamp"></span><b>照明</b>
+          </div>
+        </div>
+        <div class="wb-body">
+          <div class="wb-opening">
+            <div class="wb-backwall">
+              <div class="hepa-grille"></div>
+              <div class="uv-lamp ${o.uv?'uv-on':''}" id="uvLamp"></div>
+              <div class="back-plate">HEPA 高效过滤 · 层流送风</div>
+            </div>
+            <div class="wb-ceiling"></div>
+            <div class="wb-side left"></div>
+            <div class="wb-side right"></div>
+            <div class="wb-deck"></div>
+            <div class="deck-items">${o.items||deckItemsHTML(o.target)}</div>
+            <div class="air-streams ${o.on?'on':''}" id="airStreams"><i></i><i></i><i></i><i></i><i></i><span class="air-cap">洁净层流 →</span></div>
+            <div class="wb-sash"></div>
+            <div class="wb-lip"></div>
+          </div>
+          <div class="wb-frame left"></div>
+          <div class="wb-frame right"></div>
+          <div class="wb-accent"></div>
+        </div>
+        <div class="wb-base"><div class="wb-cab"></div><div class="wb-plate">超净工作台</div><div class="wb-leg l"></div><div class="wb-leg r"></div></div>
+      </div>`;
+    }
+
+    function renderScene(){
+      if(current===0){
+        const done = completed.has(0);
+        scene.innerHTML = `<div class="lab-room">
+          ${hud(25,50)}
+          <div class="uv-haze"></div>
+          <div class="prop-table"><span class="pty-outlet"></span><span class="pty-outlet"></span><span class="pty-outlet"></span></div>
+          <div class="prop-cart"><i></i><i></i><i></i></div>
+          <div class="bench-shadow"></div>
+          <div class="uv-timer" id="uvTimer">紫外消毒 · 30 min</div>
+          ${workbenchHTML({on:done,uv:false,attention:!done,target:done?null:'bottle'})}
+        </div>`;
+      }
+      if(current===1){
+        const done = completed.has(1);
+        const tank=(cls,id,tick,tag)=>`<div class="tank ${cls} tk${id.slice(-1)} ${(id==='tk2'||id==='tk4')?'low':''}" id="${id}"><div class="glass"><div class="liquid"></div><i class="bub"></i><i class="bub"></i><i class="bub"></i><i class="bub"></i></div><span class="tick">${tick}</span><span class="tag">${tag}</span></div>`;
+        scene.innerHTML = `<div class="lab-room">
+          ${hud(24,52)}
+          <div class="phloem-view">
+            <div class="pv-title">韧皮部细胞（取材部位）</div>
+            <div class="pv-cells"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="pv-note">细胞<b>细长、排列有序</b>——已是高度分化的细胞</div>
+          </div>
+          <div class="stage-tissue">
+            <div class="lab-table"></div>
+            <div class="cut-board">
+              ${carrotHTML()}
+              <button class="slice-ring ${(!done && step===0)?'pulse':''}" id="slice" aria-label="点击选择胡萝卜韧皮部"></button>
+              <span class="scene-label" style="left:6%;bottom:-38px">健康胡萝卜主根</span>
+            </div>
+            <div class="phloem-slab ${done?'gone':''}" id="slabBoard"></div>
+            <div class="petri glass">
+              <div class="blk b1 ${done?'in':''}"></div>
+              <div class="blk b2 ${done?'in':''}"></div>
+              <div class="blk b3 ${done?'in':''}"></div>
+              <div class="scene-label">无菌培养皿 · 放置切取的外植体</div>
+            </div>
+            <div class="rinse-station" id="rinseStation"><i class="pipe"></i><i class="spout"></i><i class="stream"></i><i class="basin"></i><span class="scene-label" style="left:50%;bottom:-24px;transform:translateX(-50%)">流水冲洗</span></div>
+            ${tank('alcohol','tk1','30 s','75% 酒精')}
+            ${tank('naocl','tk2','10 min','10% 次氯酸钙')}
+            ${tank('water','tk3','冲洗 3 次','无菌水')}
+          </div>
+          ${rigHTML('rigHand','rig-hand','','point')}
+          ${rigHTML('rigSter','rig-ster','<div class="tool t-tweezers"><i></i><i></i><i class="phloem-slab slab gone" id="slabSter"></i></div>')}
+          ${rigHTML('rigKnife','rig-knife',TOOL.scalpel)}
+        </div>`;
+      }
+      if(current===2){
+        const done = completed.has(2);
+        scene.innerHTML = `<div class="lab-room">${hud(26,55)}
+          <div class="ms-panel ${(!done && step===0)?'pulse-panel':''}" id="msPanel">
+            <div class="ms-head"><b>MS 培养基 · 组成与作用</b><span>培养基</span></div>
+            <div class="ms-grid">
+              <div class="ms-item"><strong>大量元素</strong><small>N、P、K、Ca、Mg、S · 构成与代谢</small></div>
+              <div class="ms-item"><strong>微量元素</strong><small>Fe、Mn、Zn、B 等 · 酶系统与代谢</small></div>
+              <div class="ms-item"><strong>蔗糖</strong><small>离体培养的重要外源碳源</small></div>
+              <div class="ms-item"><strong>维生素</strong><small>参与辅酶与代谢过程</small></div>
+              <div class="ms-item hormone"><strong>植物激素</strong><small>生长素 × 细胞分裂素 · 决定脱分化与器官发生方向</small></div>
+            </div>
+            <div class="ms-footer">培养基通常还需调节适宜 pH，并经灭菌后使用；具体激素配方依培养阶段而调整。</div>
+          </div>
+          <div class="sterile-badge"><i></i>紫外灯已关闭 · 洁净层流运行中</div>
+          <div class="bench-interior">
+            <div class="bi-back"><div class="hepa-grille"></div><div class="uv-lamp"></div></div>
+            <div class="bi-ceiling"></div>
+            <div class="bi-side left"></div><div class="bi-side right"></div>
+            <div class="bi-deck"></div>
+            <div class="bi-items">
+              <div class="bi-item lamp"><i class="flame" id="flame"></i><i class="lamp-body"></i></div>
+              <div class="bi-item culture-tube">
+                <div class="tube-cap ${done?'open':''}" id="tubeCap"></div>
+                <div class="tube-glass">
+                  <div class="tube-medium" id="tubeMedium"></div>
+                  <div class="tube-explant ${done?'in':''}" id="tubeExplant"></div>
+                  <div class="ripple" id="ripple"></div>
+                </div>
+              </div>
+              <div class="bi-hint">外植体切口朝下接入 MS 培养基</div>
+            </div>
+            ${rigHTML('rigTwFlame','rig-twflame','<div class="tool t-tweezers"><i></i><i></i><b class="steam3" id="steam"></b><b class="cool-chip" id="coolChip">冷却中…</b></div>')}
+            ${rigHTML('rigTwPick','rig-twpick',TOOL.tweezers)}
+          </div>
+        </div>`;
+      }
+      if(current===3){
+        const done = completed.has(3);
+        scene.innerHTML = `<div class="lab-room">${hud(26,58)}
+          <div class="lab-table"></div>
+          <div class="callus-stage">
+            <div class="petri glass tall">
+              <div class="callus-cluster" id="callusCluster">${callusCells(done?26:6)}</div>
+              <div class="scene-label">细胞分裂并聚集形成愈伤组织</div>
+            </div>
+            <div class="microscope">
+              <canvas class="cell-canvas" id="cellCanvas" width="500" height="360"></canvas>
+              <small>显微镜视野 · 40×</small>
+              <div class="cell-caption" id="cellCaption"></div>
+            </div>
+          </div>
+        </div>`;
+      }
+      if(current===4){
+        const done = completed.has(4);
+        scene.innerHTML = `<div class="lab-room">${hud(26,60)}
+          <div class="hormone-panel">
+            <div class="hormone-title"><span>生长素 / 细胞分裂素的相对比例影响器官发生方向</span><span>定性示意</span></div>
+            <div class="ratio-track"></div>
+            <div class="ratio-labels"><span><b>细胞分裂素相对较高</b> · 利于生芽</span><span><b>生长素相对较高</b> · 利于生根</span></div>
+          </div>
+          <div class="lab-table"></div>
+          <div class="organo-stage">
+            <div class="petri glass tall" style="overflow:visible">
+              <div class="callus-cluster" style="transform:scale(.7)">${callusCells(22)}</div>
+              <div class="buds ${done?'shown':''}" id="buds">${budMarkup()}</div>
+              <div class="scene-label">愈伤组织表面形成绿色芽点</div>
+            </div>
+            <div class="testtube glass">
+              <div class="medium"></div>
+              <div class="plantlet ${done?'grow rooted':''}" id="plantlet">${plantletMarkup()}</div>
+              <div class="scene-label">试管苗：先长芽，再生根</div>
+            </div>
+          </div>
+        </div>`;
+      }
+      if(current===5){
+        const done = completed.has(5);
+        const hum = done?70:humidity;
+        scene.innerHTML = `<div class="lab-room">${hud(24,hum)}
+          <div class="lab-table"></div>
+          <div class="acclim-stage">
+            <div class="testtube glass">
+              <div class="medium"></div>
+              <div class="plantlet grow rooted ${done?'gone':''}" id="plantlet2">${plantletMarkup()}</div>
+              <div class="tube-cap2 ${done?'open':''}" id="tubeCap2"></div>
+              <div class="scene-label">待驯化的完整试管苗</div>
+            </div>
+            <div class="humidity-dome ${done?'open':''}" id="dome">
+              <div class="humidity-readout" id="humidityReadout">湿度 ${hum}%</div>
+              <div class="dome-vent"><i></i><i></i><i></i></div>
+              <div class="soil-pot"><div class="soil"></div><div class="pot-plant ${done?'in':''}" id="potPlant">${plantletMarkup()}</div></div>
+              <div class="scene-label">温室驯化罩</div>
+            </div>
+          </div>
+          ${rigHTML('rigCap','rig-cap',TOOL.tweezers)}
+          ${rigHTML('rigPlant','rig-plant','')}
+        </div>`;
+      }
+      if(current===6){
+        const chain = [
+          ['韧皮部细胞','已高度分化',1],
+          ['脱分化','恢复分裂能力',3],
+          ['愈伤组织','未分化细胞团',3],
+          ['芽 / 根','再分化',4],
+          ['完整植株','可再生个体',6]
+        ];
+        scene.innerHTML = `<div class="lab-room">${hud(23,65)}
+          <div class="evidence-chain">
+            ${chain.map(([t,s,st],i)=>`${i?'<span class="ev-arrow">→</span>':''}<div class="ev-node ${completed.has(st)?'done':''}">${t}<small>${s}</small></div>`).join('')}
+          </div>
+          <div class="final-stage">
+            <div class="orbit"><span class="dot">🔬</span><span class="dot">🧫</span><span class="dot">🌿</span><span class="dot">🪴</span></div>
+            <div class="full-plant" id="fullPlant"><i class="leaf l1"></i><i class="leaf l2"></i><i class="leaf l3"></i><i class="leaf l4"></i><div class="carrot-root"><div class="carrot-core"></div></div><div class="scene-label">完整再生胡萝卜植株</div></div>
+          </div>
+          <div class="ev-bottom">
+            <div class="ev-conclusion ${completed.has(5)||completed.has(6)?'show':''}">已分化的植物细胞仍具有发育成完整个体的潜能 —— 这就是<b>细胞全能性</b>；它需要在离体、无菌、营养与激素条件下才能表达。</div>
+            <div class="cond-cards">
+              <div class="cond-card"><b>若不无菌操作</b><span>培养基被微生物污染，外植体无法存活</span></div>
+              <div class="cond-card"><b>若不加植物激素</b><span>只增殖成愈伤组织，不能分化出芽和根</span></div>
+              <div class="cond-card"><b>若不离体</b><span>仍长在胡萝卜上，不表现全能性</span></div>
+            </div>
+          </div>
+        </div>`;
+      }
+      renderActions();
+      if(current===3) drawCells(false);
+    }
+
+    function renderActions(){
+      const total = stages[current].steps.length;
+      const hint = `<div class="action-hint"><b>当前操作 ${Math.min(step+1,total)} / ${total}</b><span>${
+        completed.has(current) ? '本阶段操作已全部完成' : stages[current].steps[step]
+      }</span></div>`;
+      let b='';
+      if(current===0) b = `<button class="btn orange" data-act="uvOn">打开紫外灯</button><button class="btn primary" data-act="uvOff">关闭紫外灯并启动气流</button>`;
+      if(current===1) b = `<button class="btn orange" data-act="tissue">选择韧皮部</button><button class="btn" data-act="rinse">流水冲洗</button><button class="btn" data-act="sterilize">表面消毒</button><button class="btn primary" data-act="cut">无菌切取</button>`;
+      if(current===2) b = `<button class="btn orange" data-act="inspectMS">检查 MS 培养基</button><button class="btn" data-act="sterileTool">火焰灭菌镊子</button><button class="btn primary" data-act="inoculate">夹取并接种</button>`;
+      if(current===3) b = `<button class="btn orange" data-act="time">时间快进</button><button class="btn primary" data-act="growCallus">观察增殖</button><button class="btn" data-act="scope">显微观察</button>`;
+      if(current===4) b = `<button class="btn orange" data-act="bud">诱导生芽</button><button class="btn" data-act="observeBud">观察芽发育</button><button class="btn primary" data-act="root">诱导生根</button><button class="btn" data-act="check">确认试管苗</button>`;
+      if(current===5) b = `<button class="btn" data-act="openCap">打开瓶盖炼苗</button><button class="btn orange" data-act="dry">降低湿度</button><button class="btn primary" data-act="transplant">移栽入土</button>`;
+      if(current===6) b = `<button class="btn" data-act="review">回顾流程</button><button class="btn orange" data-act="checkPlant">检查植株</button><button class="btn primary" data-act="report">生成报告</button>`;
+      actions.innerHTML = hint + b;
+      const seq = STAGE_ACTS[current] || [];
+      actions.querySelectorAll('[data-act]').forEach(btn=>{
+        const idx = seq.indexOf(btn.dataset.act);
+        btn.disabled = completed.has(current) || idx!==step;
+        if(idx < step) btn.textContent = '✓ ' + btn.textContent;
+      });
+    }
+
+    /* ============ 动画工具 ============ */
+    function fastTime(to, cb){
+      const ff=$('#fastForward'), num=$('#timeNumber');
+      ff.classList.add('on');
+      let n=0;
+      const int=setInterval(()=>{
+        n++; num.textContent=`第 ${n} 天`;
+        if(n>=to){ clearInterval(int); setTimeout(()=>{ ff.classList.remove('on'); cb&&cb(); },350); }
+      }, Math.max(45, 650/to));
+    }
+    function growCellCluster(){
+      const cluster=$('#callusCluster'); if(!cluster) return;
+      let count=cluster.children.length;
+      const timer=setInterval(()=>{
+        if(!document.body.contains(cluster)||count>=26){ clearInterval(timer); return; }
+        const p=cellPositions[count];
+        const cell=document.createElement('i');
+        cell.className='callus-cell'+(count%5===0?' dividing':'');
+        cell.style.setProperty('--x',p[0]+'px');
+        cell.style.setProperty('--y',p[1]+'px');
+        cluster.appendChild(cell); count++;
+        if(count>=26){ clearInterval(timer); setTimeout(()=>good('细胞团块持续增殖','细胞体积基本不变，但分裂产生的新细胞不断增加并聚集。'),350); }
+      },105);
+    }
+    function drawCells(active){
+      const c=$('#cellCanvas'); if(!c) return;
+      const x=c.getContext('2d'); let frame=0;
+      const cap=$('#cellCaption');
+      if(cap) cap.innerHTML = active
+        ? '脱分化：细胞变圆、<b>恢复分裂能力</b>，聚集成愈伤组织'
+        : '取材时：韧皮部细胞<b>细长、排列有序</b> —— 已高度分化';
+      function roundRect(gx,gy,w,h,r){
+        x.beginPath();
+        x.moveTo(gx+r,gy); x.lineTo(gx+w-r,gy); x.quadraticCurveTo(gx+w,gy,gx+w,gy+r);
+        x.lineTo(gx+w,gy+h-r); x.quadraticCurveTo(gx+w,gy+h,gx+w-r,gy+h);
+        x.lineTo(gx+r,gy+h); x.quadraticCurveTo(gx,gy+h,gx,gy+h-r);
+        x.lineTo(gx,gy+r); x.quadraticCurveTo(gx,gy,gx+r,gy);
+        x.closePath();
+      }
+      function draw(){
+        x.clearRect(0,0,c.width,c.height);
+        x.fillStyle='#edf7f7'; x.fillRect(0,0,c.width,c.height);
+        if(!active){
+          /* 已分化的韧皮部细胞：细长、成行排列 */
+          const cw=44, ch=118, gx0=(500-(7*cw+6*16))/2, gy0=(360-(2*ch+26))/2;
+          for(let i=0;i<14;i++){
+            const col=i%7, row=Math.floor(i/7);
+            const gx=gx0+col*(cw+16), gy=gy0+row*(ch+26);
+            roundRect(gx,gy,cw,ch,12);
+            x.fillStyle=`hsla(${52+col*3},58%,${72-col*2}%,.85)`; x.fill();
+            x.strokeStyle='rgba(120,90,40,.42)'; x.lineWidth=2; x.stroke();
+            x.beginPath(); x.ellipse(gx+cw/2,gy+ch/2,7,17,0,0,Math.PI*2);
+            x.fillStyle='rgba(150,105,45,.32)'; x.fill();
+          }
+          return;
+        }
+        for(let i=0;i<28;i++){
+          const a=i*2.399+frame*.002;
+          const r=35+(i%5)*20;
+          const cx=250+Math.cos(a)*r, cy=180+Math.sin(a)*r*.66, rad=12+(i%4)*2;
+          x.beginPath(); x.arc(cx,cy,rad,0,Math.PI*2);
+          x.fillStyle=`hsla(${55+i*2},55%,${70-i%3*5}%,.8)`; x.fill();
+          x.strokeStyle='rgba(70,120,80,.45)'; x.stroke();
+          x.beginPath(); x.arc(cx+3,cy-2,4,0,Math.PI*2);
+          x.fillStyle='rgba(73,120,83,.45)'; x.fill();
+        }
+        if(frame++<240) requestAnimationFrame(draw);
+      }
+      draw();
+    }
+    function showBuds(){
+      [...document.querySelectorAll('#buds .bud')].forEach((b,i)=>setTimeout(()=>b.classList.add('show'), i*170));
+    }
+    function lowerHumidity(){
+      if(drying) return;
+      drying = true;
+      const el = $('#humidityReadout');
+      const startStage = current;
+      const t = setInterval(()=>{
+        humidity -= 5;
+        if(el) el.textContent = '湿度 ' + humidity + '%';
+        if(humidity<=70){
+          clearInterval(t); drying=false;
+          if(current===startStage) good('湿度已降至 70%','较低湿度促使幼苗建立正常的蒸腾调节，移栽后不易萎蔫。');
+        }
+      },110);
+    }
+
+    /* ============ 动画 / 操作判定 ============ */
+    function q(id){ return document.getElementById(id); }
+    function on(el,cls){ if(el) el.classList.add(cls); }
+    function off(el,cls){ if(el) el.classList.remove(cls); }
+    function puffMist(id, times, gap){
+      const el = q(id); if(!el) return;
+      let n = 0;
+      const tick = () => { off(el,'on'); void el.offsetWidth; on(el,'on'); n++; if(n<times) setTimeout(tick, gap); };
+      tick();
+      setTimeout(()=>off(el,'on'), times*gap + 1300);
+    }
+
+    function act(name){
+      if(completed.has(current) && name!=='report'){ toast('本阶段已完成，可继续下一阶段。'); return; }
+
+      if(current===0){
+        if(name==='uvOn'){
+          if(step!==0) return wrong('当前无需操作','请按任务顺序进行。');
+          const wb=q('workbench'); on(wb,'uv-mode'); off(wb,'attention');
+          on(document.querySelector('.lab-room'),'uv');
+          on(q('uvTimer'),'on');
+          busyUntil = Date.now() + 2600;
+          good('紫外灯已打开','操作区进入紫外消毒状态，紫外照射 30 min 杀灭台面与空气中的微生物。');
+        }
+        if(name==='uvOff'){
+          if(step!==1) return wrong('请先打开紫外灯','先完成紫外消毒，再关闭紫外灯。');
+          const wb=q('workbench'); off(wb,'uv-mode'); on(wb,'bench-on');
+          off(document.querySelector('.lab-room'),'uv');
+          off(q('uvTimer'),'on');
+          setTimeout(()=>on(q('airStreams'),'on'), 250);
+          busyUntil = Date.now() + 1900;
+          good('紫外灯已关闭，风机启动','层流洁净气流稳定送出，可以开始取材与接种操作。');
+        }
+      }
+
+      if(current===1){
+        if(name==='tissue'){
+          if(step!==0) return wrong('先识别材料','请先确认横切面上的韧皮部。');
+          tissueChosen = true;
+          off(q('slice'),'pulse'); on(q('slice'),'picked');
+          const rh=q('rigHand'); on(rh,'show'); on(rh,'acting');
+          setTimeout(()=>{ off(rh,'acting'); off(rh,'show'); }, 2900);
+          busyUntil = Date.now() + 3000;
+          good('已点选整块韧皮部','戴手套的手在横切面上点选韧皮部，取下一整块韧皮部组织作为外植体材料。');
+        }
+        if(name==='rinse'){
+          if(!tissueChosen || step!==1) return wrong('操作顺序不正确','应先用流水冲洗外植体。');
+          tissueRinsed = true;
+          on(q('slabBoard'),'gone'); off(q('slabSter'),'gone');
+          const rs=q('rigSter'); on(rs,'show'); on(rs,'rinse');
+          on(q('rinseStation'),'on');
+          setTimeout(()=>off(q('rinseStation'),'on'), 2300);
+          setTimeout(()=>{ on(q('slabSter'),'gone'); off(q('slabBoard'),'gone'); }, 3350);
+          setTimeout(()=>{ off(rs,'rinse'); off(rs,'show'); }, 3900);
+          busyUntil = Date.now() + 4100;
+          good('流水冲洗完成','用流水冲洗去掉外植体表面附着的尘土和部分微生物。');
+        }
+        if(name==='sterilize'){
+          if(!tissueRinsed || step!==2) return wrong('操作顺序不正确','应先用流水冲洗干净。');
+          tissueSterile = true;
+          on(q('slabBoard'),'gone');
+          off(q('slabSter'),'gone');
+          const rs=q('rigSter'); on(rs,'show'); on(rs,'acting');
+          setTimeout(()=>on(q('tk1'),'active'), 900);
+          setTimeout(()=>off(q('tk1'),'active'), 1600);
+          setTimeout(()=>on(q('tk2'),'active'), 2500);
+          setTimeout(()=>off(q('tk2'),'active'), 3300);
+          setTimeout(()=>on(q('tk3'),'active'), 4000);
+          setTimeout(()=>off(q('tk3'),'active'), 4800);
+          /* 镊子一直夹着外植体，送回取材板并放下后手臂才消失 */
+          setTimeout(()=>{ on(q('slabSter'),'gone'); off(q('slabBoard'),'gone'); }, 5200);
+          setTimeout(()=>{ off(rs,'acting'); off(rs,'show'); }, 5400);
+          busyUntil = Date.now() + 5600;
+          good('外植体消毒完成','75% 酒精 30 s → 10% 次氯酸钙 10 min → 无菌水冲洗 3 次，三步一次走完。');
+        }
+        if(name==='cut'){
+          if(!tissueSterile || step!==3) return wrong('不可直接切取','外植体必须先完成表面消毒。');
+          on(q('slabBoard'),'gone');
+          const rk=q('rigKnife'); on(rk,'show'); on(rk,'cutting');
+          setTimeout(()=>document.querySelectorAll('.blk').forEach((el,i)=>setTimeout(()=>on(el,'in'), i*170)), 1650);
+          setTimeout(()=>{ off(rk,'cutting'); off(rk,'show'); }, 2950);
+          busyUntil = Date.now() + 3000;
+          good('无菌切取完成','用解剖刀切取消毒后的内部组织，切成约 5 mm 见方的小块，逐块放入无菌培养皿。');
+        }
+      }
+
+      if(current===2){
+        if(name==='inspectMS'){
+          if(step!==0) return wrong('操作顺序不正确','请先检查培养基组成。');
+          msChecked = true;
+          on(q('msPanel'),'checked');
+          good('MS 培养基组成已确认','大量元素、微量元素、蔗糖、维生素与植物激素共同支持离体组织生长与分化。');
+        }
+        if(name==='sterileTool'){
+          if(!msChecked || step!==1) return wrong('请先检查培养基','确认培养基组成后，再进行无菌接种操作。');
+          toolSterile = true;
+          const r1=q('rigTwFlame'); on(r1,'show'); on(r1,'acting');
+          const tips = r1.querySelectorAll('.t-tweezers i');
+          setTimeout(()=>tips.forEach(t=>on(t,'hot')), 1400);
+          setTimeout(()=>{ tips.forEach(t=>{ off(t,'hot'); on(t,'cool'); }); on(q('steam'),'on'); on(q('coolChip'),'on'); }, 2300);
+          setTimeout(()=>{ off(q('steam'),'on'); off(q('coolChip'),'on'); off(r1,'acting'); off(r1,'show'); }, 3500);
+          busyUntil = Date.now() + 3600;
+          good('镊子已火焰灭菌','镊子尖端在火焰中灼烧至红热，移出后稍作冷却，避免烫伤外植体。');
+        }
+        if(name==='inoculate'){
+          if(!toolSterile || step!==2) return wrong('无菌操作不规范','必须先火焰灭菌镊子并冷却，再接种。');
+          const r2=q('rigTwPick'); on(r2,'show'); on(r2,'acting');
+          setTimeout(()=>on(q('tubeCap'),'open'), 950);
+          setTimeout(()=>{ on(q('tubeExplant'),'in'); on(q('ripple'),'on'); }, 2550);
+          setTimeout(()=>off(q('ripple'),'on'), 3300);
+          setTimeout(()=>{ off(r2,'acting'); off(r2,'show'); }, 3700);
+          busyUntil = Date.now() + 3800;
+          good('接种完成','镊子夹取外植体，瓶盖旋开、切口朝下接入培养基，瓶口重新封好。');
+        }
+      }
+
+      if(current===3){
+        if(name==='time'){
+          if(step!==0) return wrong('当前无需快进','请按任务顺序推进培养时间。');
+          fastTime(12, ()=>good('已培养 12 天','外植体切口处开始出现浅黄色细胞团。'));
+        }
+        if(name==='growCallus'){
+          if(step!==1) return wrong('培养时间不足','先启动时间快进，等待脱分化。');
+          growCellCluster();
+        }
+        if(name==='scope'){
+          if(step!==2) return wrong('样本尚未形成','先观察愈伤组织增殖。');
+          drawCells(true); good('观察到正在分裂的细胞','细胞数量增加，说明脱分化与增殖正在发生。');
+        }
+      }
+
+      if(current===4){
+        if(name==='bud'){
+          if(step!==0) return wrong('操作顺序不正确','请先完成当前步骤。');
+          showBuds();
+          good('愈伤组织分化出芽点','表层细胞重新组织形成芽原基，表面出现绿色芽点。');
+        }
+        if(name==='observeBud'){
+          if(step!==1) return wrong('芽点尚未形成','请先诱导愈伤组织分化出芽。');
+          on(q('plantlet'),'grow');
+          good('芽已发育成带叶的幼芽','芽原基伸长，茎叶系统逐渐建立。');
+        }
+        if(name==='root'){
+          if(step!==2) return wrong('芽尚未长成','先让芽发育成完整的茎叶系统，再诱导生根。');
+          on(q('plantlet'),'rooted');
+          good('幼芽基部形成不定根','根系建立后，小植株可独立吸收水分和无机盐。');
+        }
+        if(name==='check'){
+          if(step!==3) return wrong('根系尚未形成','请先诱导生根，形成完整试管苗。');
+          good('完整试管苗建成','芽（茎叶）与根齐全，一株完整的小植株诞生了。');
+        }
+      }
+
+      if(current===5){
+        if(name==='openCap'){
+          if(step!==0) return wrong('操作顺序不正确','先打开瓶盖开始炼苗。');
+          capOpened = true;
+          on(q('tubeCap2'),'open');
+          const rc=q('rigCap'); on(rc,'show'); on(rc,'acting');
+          setTimeout(()=>on(q('dome'),'open'), 900);
+          setTimeout(()=>{ off(rc,'acting'); off(rc,'show'); }, 3100);
+          busyUntil = Date.now() + 3200;
+          good('瓶盖已打开','旋开瓶盖并移开，驯化罩通风口逐步打开，让幼苗适应较低湿度。');
+        }
+        if(name==='dry'){
+          if(!capOpened || step!==1) return wrong('先开盖炼苗','逐步通风后才能降低环境湿度。');
+          lowerHumidity();
+        }
+        if(name==='transplant'){
+          if(step!==2) return wrong('湿度尚未降低','先把湿度降到 70% 左右再移栽。');
+          const rp=q('rigPlant'); on(rp,'show'); on(rp,'acting');
+          const pl=q('plantlet2'); on(pl,'taken');
+          setTimeout(()=>{ on(pl,'gone'); on(q('potPlant'),'in'); }, 2600);
+          setTimeout(()=>{ off(rp,'acting'); off(rp,'show'); }, 3200);
+          busyUntil = Date.now() + 3300;
+          good('移栽成功','取出整株试管苗、洗去根部培养基后植入疏松消毒的基质，驯化罩内继续保湿缓苗。');
+        }
+      }
+
+      if(current===6){
+        if(name==='review'){
+          if(step!==0) return wrong('请按顺序检查','先回顾培养节点。');
+          fastTime(6, ()=>good('流程回顾完成','外植体 → 愈伤组织 → 芽 → 根 → 试管苗 → 完整植株。'));
+        }
+        if(name==='checkPlant'){
+          if(step!==1) return wrong('请先回顾流程','建立完整证据链后再检查植株。');
+          on(q('fullPlant'),'verified');
+          good('植株生长正常','根、茎、叶结构完整，移栽后持续生长。');
+        }
+        if(name==='report'){
+          if(step!==2) return wrong('报告证据不完整','请先完成流程回顾和植株检查。');
+          good('实验报告已生成','实验闭环完成。');
+          setTimeout(openReport,900);
+        }
+      }
+    }
+
+    /* ============ 测验 / 报告 ============ */
+    function openQuiz(st){
+      /* 只有仍然停在原阶段时才弹题，且无题的阶段不弹 */
+      if(typeof st === 'number' && st !== current) return;
+      const s = stages[current];
+      if(!s || !s.quiz || !s.options || !s.options.length) return;
+      transitionPending = false;
+      $('#quizQuestion').textContent = s.quiz;
+      $('#quizExplain').textContent = '请选择一个答案。';
+      $('#quizContinue').disabled = true;
+      $('#quizOptions').innerHTML = s.options.map((o,i)=>`<button class="quiz-option" data-option="${i}">${String.fromCharCode(65+i)}. ${o}</button>`).join('');
+      $('#quizModal').classList.add('open');
+      if(autoMode){
+        setTimeout(()=>{
+          const btn = document.querySelector(`.quiz-option[data-option="${s.correct}"]`);
+          if(btn) btn.click();
+          setTimeout(()=>$('#quizModal').classList.remove('open'), 850);
+        }, 700);
+      }
+    }
+    function answerQuiz(i){
+      const s = stages[current];
+      const buttons = [...document.querySelectorAll('.quiz-option')];
+      buttons.forEach(b=>b.disabled=true);
+      buttons[s.correct].classList.add('correct');
+      if(i===s.correct){
+        if(!answered.has(current)) quizScore++;
+        $('#quizExplain').textContent = '回答正确。' + s.explain;
+        beep(true);
+      }else{
+        buttons[i].classList.add('wrong');
+        $('#quizExplain').textContent = '再想一想。' + s.explain;
+        errors++; beep(false);
+      }
+      answered.add(current);
+      $('#quizContinue').disabled = false;
+    }
+    function openReport(){
+      $('#reportCompletion').textContent = `${Math.round(completed.size/stages.length*100)}%`;
+      $('#reportScore').textContent = `${quizScore}/${QUIZ_TOTAL}`;
+      $('#reportErrors').textContent = errors;
+      $('#reportTable').innerHTML = stages.map((s,i)=>`<tr><td>阶段 ${i} · ${s.nav}</td><td>${completed.has(i)?'已完成':'未完成'}</td></tr>`).join('');
+      $('#reportModal').classList.add('open');
+    }
+
+    /* ============ 阶段切换 / 重置 ============ */
+    function changeStage(i){
+      if(i<0 || i>=stages.length) return;
+      current = i; transitionPending = false;
+      $('#quizModal').classList.remove('open');
+      $('#reportModal').classList.remove('open');
+      toolSterile = false; msChecked = completed.has(2); tissueChosen = false; tissueRinsed = false; tissueSterile = false;
+      capOpened = false; humidity = completed.has(5)?70:95; drying = false;
+      render();
+    }
+    function reset(){
+      if(!confirm('确定要清除当前实验进度并重新开始吗？')) return;
+      completed.clear(); answered.clear();
+      current=0; step=0; errors=0; quizScore=0; autoMode=false;
+      toolSterile=false; msChecked=false; tissueChosen=false; tissueRinsed=false; tissueSterile=false;
+      capOpened=false; humidity=95; drying=false;
+      clearTimeout(autoTimer);
+      transitionPending = false;
+      autoStall = 0;
+      $('#autoBtn').classList.remove('active');
+      $('#autoBtn').textContent='自动演示';
+      updateProgress(); render(); toast('实验已重置');
+    }
+
+    /* ============ 事件绑定 ============ */
+    nav.addEventListener('click', e=>{
+      const b = e.target.closest('[data-stage]');
+      if(b) changeStage(+b.dataset.stage);
+    });
+    actions.addEventListener('click', e=>{
+      const b = e.target.closest('[data-act]');
+      if(b) act(b.dataset.act);
+    });
+    $('#quizOptions').addEventListener('click', e=>{
+      const b = e.target.closest('[data-option]');
+      if(b) answerQuiz(+b.dataset.option);
+    });
+    $('#quizContinue').addEventListener('click', ()=>{
+      $('#quizModal').classList.remove('open');
+      if(current<6) changeStage(current+1); else openReport();
+    });
+    $('#prevBtn').addEventListener('click', ()=>changeStage(current-1));
+    $('#nextBtn').addEventListener('click', ()=>{
+      if(!completed.has(current)){
+        wrong('请先完成本阶段','请按当前步骤完成操作，再进入下一阶段。');
+        return;
+      }
+      current===6 ? openReport() : changeStage(current+1);
+    });
+    $('#resetBtn').addEventListener('click', reset);
+    $('#closeReport').addEventListener('click', ()=>$('#reportModal').classList.remove('open'));
+    $('#printBtn').addEventListener('click', ()=>window.print());
+
+    /* ============ 自动演示 ============ */
+    $('#autoBtn').addEventListener('click', ()=>{
+      autoMode = !autoMode;
+      $('#autoBtn').classList.toggle('active', autoMode);
+      $('#autoBtn').textContent = autoMode ? '停止演示' : '自动演示';
+      clearTimeout(autoTimer);
+      autoStall = 0;
+      if(autoMode) autoDemo();
+    });
+
+    /* 右侧步骤：点一下就能执行这一步 */
+    $('#steps').addEventListener('click', e=>{
+      const el = e.target.closest('.step');
+      if(!el) return;
+      if($('#quizModal').classList.contains('open') || $('#reportModal').classList.contains('open')) return;
+      const idx = Number(el.dataset.step);
+      const name = el.dataset.act;
+      if(!name) return;
+      if(completed.has(current)){ toast('本阶段操作已全部完成'); return; }
+      if(idx > step){ wrong('请按顺序操作','请先完成第 '+(step+1)+' 步：'+stages[current].steps[step]); return; }
+      if(idx < step){ toast('这一步已经完成'); return; }
+      act(name);
+    });
+    $('#steps').addEventListener('keydown', e=>{
+      if((e.key==='Enter'||e.key===' ') && e.target.classList.contains('step') && e.target.dataset.act){
+        e.preventDefault(); e.target.click();
+      }
+    });
+
+    function autoDemo(){
+      if(!autoMode) return;
+      if($('#quizModal').classList.contains('open')){ autoTimer=setTimeout(autoDemo,500); return; }
+      if(transitionPending){ autoTimer=setTimeout(autoDemo,800); return; }
+      if(Date.now() < busyUntil){ autoTimer=setTimeout(autoDemo,500); return; }
+      if(completed.has(current)){
+        if(current<6){ changeStage(current+1); autoTimer=setTimeout(autoDemo,700); }
+        else{ openReport(); autoMode=false; $('#autoBtn').classList.remove('active'); $('#autoBtn').textContent='自动演示'; }
+        return;
+      }
+      const seq = STAGE_ACTS[current];
+      if(!seq || step>=seq.length){ autoTimer=setTimeout(autoDemo,800); return; }
+      const name = seq[step];
+      const before = step;
+      if(name) act(name);
+      /* 卡住保护：连续多次操作没能推进就自动停止演示 */
+      autoStall = (step===before) ? autoStall+1 : 0;
+      if(autoStall>=5){
+        autoMode=false; autoStall=0;
+        $('#autoBtn').classList.remove('active'); $('#autoBtn').textContent='自动演示';
+        toast('演示已暂停','bad'); return;
+      }
+      autoTimer = setTimeout(autoDemo, current===3 ? 3800 : ((current===2||current===5) ? 2700 : 1600));
+    }
+
+    /* ============ 键盘快捷键 ============ */
+    document.addEventListener('keydown', e=>{
+      if($('#quizModal').classList.contains('open') || $('#reportModal').classList.contains('open')) return;
+      if(e.key==='ArrowRight') changeStage(Math.min(6,current+1));
+      if(e.key==='ArrowLeft') changeStage(Math.max(0,current-1));
+    });
+
+    updateProgress();
+    render();
+  })();
+  </script>
+</body>
+</html>
